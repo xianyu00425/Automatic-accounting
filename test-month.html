@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>费用分析联动测试</title>
+<style>
+body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #e0e0e0; max-width: 900px; margin: 0 auto; }
+h2 { color: #4CAF50; }
+pre { background: #16213e; padding: 12px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+.btn { padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin: 5px; }
+.btn:hover { background: #1976D2; }
+</style>
+</head>
+<body>
+<h2>费用分析月份联动测试</h2>
+<div id="out"></div>
+<button class="btn" onclick="doTest()">运行测试</button>
+<button class="btn" onclick="switchToMarch()">切换到3月</button>
+<button class="btn" onclick="switchToApril()">切换到4月</button>
+<script>
+var out = document.getElementById('out');
+function log(html) { out.innerHTML += '<pre>' + html + '</pre>'; }
+
+function doTest() {
+    out.innerHTML = '';
+    log('=== 测试开始 ===');
+    log('window.renderExpenseAnalysis 存在: ' + (typeof window.renderExpenseAnalysis === 'function'));
+    log('window.AppState 存在: ' + (typeof window.AppState === 'object'));
+
+    if (!window.AppState) {
+        log('错误: AppState 未定义，请确保在自动记账V8优化版.html 中运行');
+        return;
+    }
+
+    log('AppState.currentMonth: ' + AppState.currentMonth.toISOString());
+    log('交易总数: ' + AppState.getTransactions().length);
+
+    // 统计月份分布
+    var allTx = AppState.getTransactions();
+    var months = {};
+    for (var i = 0; i < allTx.length; i++) {
+        var d = new Date(allTx[i].date);
+        if (!isNaN(d.getTime())) {
+            var key = d.getFullYear() + '-' + (d.getMonth()+1);
+            if (!months[key]) months[key] = {exp:0, inc:0};
+            if (allTx[i].type === 'expense') months[key].exp++;
+            if (allTx[i].type === 'income') months[key].inc++;
+        }
+    }
+    log('月份分布:');
+    var keys = Object.keys(months).sort();
+    for (var k = 0; k < keys.length; k++) {
+        log('  ' + keys[k] + '月: 支出' + months[keys[k]].exp + '笔, 收入' + months[keys[k]].inc + '笔');
+    }
+}
+
+function switchToMarch() {
+    log('');
+    log('--- 手动切换到3月 ---');
+    AppState.currentMonth = new Date(2026, 2, 1);
+    log('AppState.currentMonth 设为: ' + AppState.currentMonth.toISOString());
+
+    if (typeof window.renderExpenseAnalysis === 'function') {
+        log('调用 window.renderExpenseAnalysis()...');
+        window.renderExpenseAnalysis();
+        log('调用完成');
+    } else {
+        log('错误: window.renderExpenseAnalysis 不存在');
+    }
+}
+
+function switchToApril() {
+    log('');
+    log('--- 手动切换到4月 ---');
+    AppState.currentMonth = new Date(2026, 3, 1);
+    log('AppState.currentMonth 设为: ' + AppState.currentMonth.toISOString());
+
+    if (typeof window.renderExpenseAnalysis === 'function') {
+        log('调用 window.renderExpenseAnalysis()...');
+        window.renderExpenseAnalysis();
+        log('调用完成');
+    } else {
+        log('错误: window.renderExpenseAnalysis 不存在');
+    }
+}
+</script>
+</body>
+</html>

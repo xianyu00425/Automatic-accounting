@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试导入功能</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; white-space: pre-wrap; }
+        .error { color: red; }
+        .success { color: green; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>微信支付导入测试工具</h1>
+    <p>请选择微信支付导出的Excel文件进行测试：</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" />
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.textContent = msg;
+            output.appendChild(div);
+            console.log(msg);
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            output.innerHTML = '';
+            log('开始分析文件: ' + file.name);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    log('文件大小: ' + data.length + ' bytes');
+
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    log('工作表列表: ' + workbook.SheetNames.join(', '));
+
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    log('总行数: ' + jsonData.length);
+
+                    if (jsonData.length === 0) {
+                        log('文件为空！', 'error');
+                        return;
+                    }
+
+                    // 分析表头
+                    const headers = jsonData[0].map(h => String(h || '').trim());
+                    log('\n表头分析:\n' + headers.map((h, i) => `  [${i}] ${h}`).join('\n'));
+
+                    // 查找实际的数据起始行
+                    let fileType = 'unknown';
+                    let startRow = 1;
+                    
+                    for (let i = 0; i < Math.min(30, jsonData.length); i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0) continue;
+                        
+                        const rowHeaders = row.map(h => String(h || '').trim());
+                        const headerStr = rowHeaders.join(',');
+                        
+                        if ((headerStr.includes('交易时间') || headerStr.includes('交易单号')) && 
+                            (headerStr.includes('交易类型') || headerStr.includes('交易对方'))) {
+                            fileType = 'wechat';
+                            startRow = i + 1;
+                            break;
+                        }
+                        
+                        if (headerStr.includes('交易时间') && headerStr.includes('交易订单号')) {
+                            fileType = 'alipay';
+                            startRow = i + 1;
+                            break;
+                        }
+                    }
+                    
+                    log('\n检测到文件类型: ' + fileType);
+                    log('数据起始行: 第' + startRow + '行 (表头)');
+
+                    // 分析数据行
+                    log('\n前3行数据分析:');
+                    for (let i = 1; i < Math.min(4, jsonData.length); i++) {
+                        const row = jsonData[i];
+                        log(`\n第${i + 1}行:`);
+
+                        const rowData = {};
+                        headers.forEach((header, index) => {
+                            rowData[header] = row[index];
+                        });
+
+                        // 尝试解析
+                        if (fileType === 'wechat') {
+                            const date = rowData['交易时间'];
+                            const amount = rowData['金额(元)'] || rowData['金额'];
+                            const type = rowData['收/支'];
+                            const counterparty = rowData['交易对方'];
+                            const category = rowData['交易类型'];
+
+                            log(`  交易时间: ${date} (类型: ${typeof date})`);
+                            log(`  金额: ${amount} (类型: ${typeof amount})`);
+                            log(`  收/支: ${type}`);
+                            log(`  交易对方: ${counterparty}`);
+                            log(`  交易类型: ${category}`);
+
+                            // 验证日期
+                            const parsedDate = parseWechatDate(date);
+                            log(`  日期解析结果: ${parsedDate ? parsedDate.toISOString() : '失败'}`, parsedDate ? 'success' : 'error');
+
+                            // 验证金额
+                            const amountStr = String(amount || '').replace(/[¥￥,\s]/g, '');
+                            const parsedAmount = parseFloat(amountStr);
+                            log(`  金额解析结果: ${parsedAmount}`, parsedAmount > 0 ? 'success' : 'error');
+                        }
+                    }
+
+                    log('\n分析完成！', 'success');
+
+                } catch (err) {
+                    log('错误: ' + err.message, 'error');
+                    console.error(err);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
+        function parseWechatDate(dateStr) {
+            if (!dateStr) return null;
+            const str = String(dateStr).trim();
+
+            // 格式1: 2024-01-15 14:30:00
+            let match = str.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+            if (match) {
+                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]),
+                    parseInt(match[4]), parseInt(match[5]), parseInt(match[6]));
+            }
+
+            // 格式2: 2024-01-15 14:30
+            match = str.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+(\d{1,2}):(\d{1,2})/);
+            if (match) {
+                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]),
+                    parseInt(match[4]), parseInt(match[5]));
+            }
+
+            // 格式3: Excel序列号日期
+            if (typeof dateStr === 'number') {
+                // Excel日期从1900年1月1日开始计算
+                const excelEpoch = new Date(1900, 0, 1);
+                const days = dateStr - 2; // Excel错误地认为1900年是闰年
+                return new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000);
+            }
+
+            // 尝试标准解析
+            const date = new Date(str);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+
+            return null;
+        }
+    </script>
+</body>
+</html>

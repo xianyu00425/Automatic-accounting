@@ -1,0 +1,39 @@
+﻿  function parseWechatDate(dateValue) {
+      if (!dateValue) return null;
+      // 如果是 Excel 序列号，转换为标准日期字符串
+      if (typeof dateValue === 'number') {
+          const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+          const date = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
+          // 返回标准格式：2026/3/31 12:08:19
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          const day = date.getDate();
+          const hours = date.getHours();
+          const minutes = date.getMinutes();
+          const seconds = date.getSeconds();
+          return year + '/' + month + '/' + day + ' ' + String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+      }
+      // 如果已经是字符串，直接返回
+      const str = String(dateValue).trim();
+      return str;
+  }
+
+  function parseAlipayDate(dateValue) {
+      if (!dateValue) return null;
+      // 如果是 Excel 序列号，转换为标准日期字符串
+      if (typeof dateValue === 'number') {
+          const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+          const date = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
+          // 返回标准格式：2026/3/31 12:08:19
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          const day = date.getDate();
+          const hours = date.getHours();
+          const minutes = date.getMinutes();
+          const seconds = date.getSeconds();
+          return year + '/' + month + '/' + day + ' ' + String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+      }
+      // 如果已经是字符串，直接返回
+      const str = String(dateValue).trim();
+      return str;
+  }

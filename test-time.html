@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>时间解析测试</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+        .error { color: red; }
+        .success { color: green; }
+        .warning { color: orange; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>时间解析测试工具</h1>
+    <p>选择微信支付或支付宝文件，检查时间解析是否正确：</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" />
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.textContent = msg;
+            output.appendChild(div);
+            console.log(msg);
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            output.innerHTML = '';
+            log('开始分析文件: ' + file.name);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    // 查找表头行
+                    let startRow = 1;
+                    let headers = [];
+                    for (let i = 0; i < Math.min(30, jsonData.length); i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0) continue;
+                        const rowHeaders = row.map(h => String(h || '').trim());
+                        const headerStr = rowHeaders.join(',');
+                        if (headerStr.includes('交易时间')) {
+                            headers = rowHeaders;
+                            startRow = i + 1;
+                            break;
+                        }
+                    }
+
+                    log('数据起始行: 第' + startRow + '行');
+                    log('表头: ' + headers.join(', '));
+
+                    // 创建结果表格
+                    const table = document.createElement('table');
+                    table.innerHTML = `
+                        <tr>
+                            <th>行号</th>
+                            <th>原始时间值</th>
+                            <th>值类型</th>
+                            <th>解析后ISO</th>
+                            <th>本地显示</th>
+                            <th>状态</th>
+                        </tr>
+                    `;
+
+                    // 分析前10行数据
+                    for (let i = startRow; i < Math.min(startRow + 10, jsonData.length); i++) {
+                        const row = jsonData[i];
+                        if (!row) continue;
+
+                        // 找到交易时间列
+                        const timeIndex = headers.findIndex(h => h.includes('交易时间'));
+                        if (timeIndex === -1) continue;
+
+                        const originalValue = row[timeIndex];
+                        const valueType = typeof originalValue;
+
+                        // 解析日期
+                        const parsedDate = parseWechatDate(originalValue);
+                        const isoString = parsedDate ? parsedDate.toISOString() : '解析失败';
+                        const localString = parsedDate ? parsedDate.toLocaleString('zh-CN') : '解析失败';
+
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${i + 1}</td>
+                            <td>${originalValue}</td>
+                            <td>${valueType}</td>
+                            <td>${isoString}</td>
+                            <td>${localString}</td>
+                            <td>${parsedDate ? '<span style="color:green">✓</span>' : '<span style="color:red">✗</span>'}</td>
+                        `;
+                        table.appendChild(tr);
+                    }
+
+                    output.appendChild(table);
+
+                    // 显示系统时区信息
+                    log('\n系统时区信息:', 'warning');
+                    log('时区: ' + Intl.DateTimeFormat().resolvedOptions().timeZone);
+                    log('本地时间: ' + new Date().toLocaleString('zh-CN'));
+                    log('UTC时间: ' + new Date().toISOString());
+
+                } catch (err) {
+                    log('错误: ' + err.message, 'error');
+                    console.error(err);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
+        function parseWechatDate(dateValue) {
+            if (!dateValue) return null;
+
+            // 处理Excel日期序列号（数字格式）
+            if (typeof dateValue === 'number') {
+                // Excel日期从1899-12-30开始计算
+                const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                const days = dateValue;
+                const milliseconds = days * 24 * 60 * 60 * 1000;
+                return new Date(excelEpoch.getTime() + milliseconds);
+            }
+
+            const str = String(dateValue).trim();
+
+            // 格式1: 2024-01-15 14:30:00
+            let match = str.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+            if (match) {
+                const isoStr = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}T${match[4].padStart(2, '0')}:${match[5].padStart(2, '0')}:${match[6].padStart(2, '0')}`;
+                return new Date(isoStr);
+            }
+
+            // 格式2: 2024-01-15 14:30
+            match = str.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+(\d{1,2}):(\d{1,2})/);
+            if (match) {
+                const isoStr = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}T${match[4].padStart(2, '0')}:${match[5].padStart(2, '0')}:00`;
+                return new Date(isoStr);
+            }
+
+            // 尝试标准解析
+            const date = new Date(str);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+
+            return null;
+        }
+    </script>
+</body>
+</html>

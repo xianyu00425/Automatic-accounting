@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>费用分析调试</title>
+<style>
+body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #e0e0e0; max-width: 900px; margin: 0 auto; }
+h2 { color: #4CAF50; }
+pre { background: #16213e; padding: 12px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+.section { margin-bottom: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #333; }
+th { background: #0d1b2a; color: #4CAF50; }
+.badge { padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+.expense { background: #ffebee; color: #F44336; }
+.income { background: #e8f5e9; color: #4CAF50; }
+.transfer { background: #f3e5f5; color: #9C27B0; }
+</style>
+</head>
+<body>
+<h2>费用分析 - 数据调试</h2>
+<div id="out"></div>
+
+<script>
+var out = document.getElementById('out');
+function log(html) { out.innerHTML += '<pre>' + html + '</pre>'; }
+
+try {
+    // 当前系统时间
+    var now = new Date();
+    log('系统当前时间: ' + now.toLocaleString('zh-CN'));
+    log('系统当前年月: ' + now.getFullYear() + '-' + (now.getMonth()+1));
+
+    // 读取交易
+    var txRaw = localStorage.getItem('transactions');
+    if (!txRaw) { log('<span style="color:#FF9800">localStorage 中没有 transactions 数据</span>'); }
+    else {
+        var tx = JSON.parse(txRaw);
+        log('transactions 总数: ' + tx.length);
+
+        // 显示前5条的日期格式
+        log('--- 前10条交易的日期格式 ---');
+        for (var i = 0; i < tx.length && i < 10; i++) {
+            var t = tx[i];
+            var d = new Date(t.date);
+            var parseOk = !isNaN(d.getTime());
+            log('[' + i + '] type=' + t.type + ' | amount=' + t.amount + ' | categoryId=' + t.categoryId + ' | date=' + t.date + ' | parsed=' + (parseOk ? d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate() : 'INVALID') + ' | counterparty=' + (t.counterparty||''));
+        }
+
+        // 按月统计
+        var months = {};
+        for (var j = 0; j < tx.length; j++) {
+            var dd = new Date(tx[j].date);
+            if (isNaN(dd.getTime())) continue;
+            var key = dd.getFullYear() + '-' + (dd.getMonth()+1);
+            if (!months[key]) months[key] = { exp: 0, inc: 0, transfer: 0, cnt: 0 };
+            if (tx[j].type === 'expense') months[key].exp += Math.abs(tx[j].amount);
+            else if (tx[j].type === 'income') months[key].inc += Math.abs(tx[j].amount);
+            else if (tx[j].type === 'transfer') months[key].transfer += Math.abs(tx[j].amount);
+            months[key].cnt++;
+        }
+
+        log('--- 按月分布 ---');
+        var mKeys = Object.keys(months).sort();
+        for (var m = 0; m < mKeys.length; m++) {
+            var mk = mKeys[m];
+            var mv = months[mk];
+            log('  ' + mk + '月: 支出¥' + mv.exp.toFixed(2) + ' 收入¥' + mv.inc.toFixed(2) + ' 转账¥' + mv.transfer.toFixed(2) + ' 共' + mv.cnt + '笔');
+        }
+
+        // 读取分类
+        var catRaw = localStorage.getItem('categories');
+        var cats = catRaw ? JSON.parse(catRaw) : [];
+        log('categories 总数: ' + cats.length);
+        var catMap = {};
+        for (var c = 0; c < cats.length; c++) {
+            catMap[cats[c].id] = cats[c].name;
+            log('  id=' + cats[c].id + ' name=' + cats[c].name + ' type=' + cats[c].type);
+        }
+
+        // 按分类汇总 2026年3月 的支出
+        log('--- 2026年3月 支出按分类汇总 ---');
+        var expMap = {};
+        var expTotal = 0;
+        var expCount = 0;
+        for (var k = 0; k < tx.length; k++) {
+            var t = tx[k];
+            var dd = new Date(t.date);
+            if (t.type === 'expense' && dd.getFullYear() === 2026 && dd.getMonth() === 2) { // 3月 = index 2
+                var name = catMap[t.categoryId] || '未分类';
+                var amt = Math.abs(t.amount);
+                expTotal += amt;
+                expCount++;
+                expMap[name] = (expMap[name] || 0) + amt;
+            }
+        }
+        log('  支出交易数: ' + expCount);
+        log('  支出总额: ¥' + expTotal.toFixed(2));
+        var expEntries = [];
+        for (var name in expMap) expEntries.push({name: name, amount: expMap[name]});
+        expEntries.sort(function(a,b){return b.amount-a.amount;});
+        for (var e = 0; e < expEntries.length; e++) {
+            var pct = expTotal > 0 ? ((expEntries[e].amount / expTotal) * 100).toFixed(1) : 0;
+            log('    ' + expEntries[e].name + ': ¥' + expEntries[e].amount.toFixed(2) + ' (' + pct + '%)');
+        }
+
+        // 按分类汇总 2026年3月 的收入
+        log('--- 2026年3月 收入按分类汇总 ---');
+        var incMap = {};
+        var incTotal = 0;
+        var incCount = 0;
+        for (var k2 = 0; k2 < tx.length; k2++) {
+            var t2 = tx[k2];
+            var dd2 = new Date(t2.date);
+            if (t2.type === 'income' && dd2.getFullYear() === 2026 && dd2.getMonth() === 2) {
+                var name2 = catMap[t2.categoryId] || '未分类';
+                var amt2 = Math.abs(t2.amount);
+                incTotal += amt2;
+                incCount++;
+                incMap[name2] = (incMap[name2] || 0) + amt2;
+            }
+        }
+        log('  收入交易数: ' + incCount);
+        log('  收入总额: ¥' + incTotal.toFixed(2));
+        var incEntries = [];
+        for (var name2 in incMap) incEntries.push({name: name2, amount: incMap[name2]});
+        incEntries.sort(function(a,b){return b.amount-a.amount;});
+        for (var e2 = 0; e2 < incEntries.length; e2++) {
+            var pct2 = incTotal > 0 ? ((incEntries[e2].amount / incTotal) * 100).toFixed(1) : 0;
+            log('    ' + incEntries[e2].name + ': ¥' + incEntries[e2].amount.toFixed(2) + ' (' + pct2 + '%)');
+        }
+
+        if (expCount === 0 && incCount === 0) {
+            log('<span style="color:#FF9800">⚠️ 2026年3月 没有支出/收入交易！请检查账单的 date 字段是否为 2026-03-xx 格式。</span>');
+        }
+    }
+
+} catch(e) {
+    log('<span style="color:#F44336">错误: ' + e.message + '\n' + e.stack + '</span>');
+}
+</script>
+</body>
+</html>

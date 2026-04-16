@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新增功能测试 - 自动记账</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #757575;
+            margin-bottom: 40px;
+        }
+        .feature-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-left: 4px solid #667eea;
+        }
+        .feature-section h2 {
+            color: #667eea;
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+        .feature-section h2::before {
+            content: '✨ ';
+        }
+        .test-case {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #e0e0e0;
+        }
+        .test-case-title {
+            font-weight: 600;
+            color: #2196F3;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        .test-case-title::before {
+            content: '📋 ';
+        }
+        .scenario {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .scenario-item {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .scenario-item strong {
+            color: #2196F3;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .result-box {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .result-box h4 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .result-box h4::before {
+            content: '✅ ';
+        }
+        .calculation {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            border-radius: 4px;
+            margin-top: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .calculation-title {
+            color: #856404;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .calculation-title::before {
+            content: '🧮 ';
+        }
+        .tip {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 16px;
+            border-radius: 4px;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        .tip-title {
+            color: #1976D2;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .tip-title::before {
+            content: '💡 ';
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .comparison-item {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+        .comparison-item.before {
+            border-color: #FF9800;
+        }
+        .comparison-item.after {
+            border-color: #4CAF50;
+        }
+        .comparison-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .comparison-item.before .comparison-title {
+            color: #FF9800;
+        }
+        .comparison-item.after .comparison-title {
+            color: #4CAF50;
+        }
+        .workflow {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .workflow-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .arrow {
+            text-align: center;
+            font-size: 24px;
+            color: #667eea;
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 自动记账新增功能测试</h1>
+        <p class="subtitle">版本 v2.1 - 智能化升级</p>
+
+        <!-- 功能 1 测试 -->
+        <div class="feature-section">
+            <h2>功能 1: 账单导入后自动更新汇总和余额</h2>
+            
+            <div class="test-case">
+                <div class="test-case-title">测试场景 1: 导入支出账单</div>
+                <div class="scenario">
+                    <div class="scenario-item">
+                        <strong>前置条件</strong>
+                        支付宝余额：¥1000.00<br>
+                        当月支出：¥500.00
+                    </div>
+                    <div class="scenario-item">
+                        <strong>导入操作</strong>
+                        账户：支付宝<br>
+                        交易：支出 ¥100.00 (滴滴出行)<br>
+                        交易：支出 ¥50.00 (美团外卖)
+                    </div>
+                </div>
+                <div class="result-box">
+                    <h4>预期结果</h4>
+                    <div class="scenario">
+                        <div class="scenario-item" style="background: rgba(255,255,255,0.2);">
+                            <strong style="color: white;">支付宝余额</strong>
+                            ¥1000.00 → ¥850.00
+                        </div>
+                        <div class="scenario-item" style="background: rgba(255,255,255,0.2);">
+                            <strong style="color: white;">当月支出</strong>
+                            ¥500.00 → ¥650.00
+                        </div>
+                        <div class="scenario-item" style="background: rgba(255,255,255,0.2);">
+                            <strong style="color: white;">本月结余</strong>
+                            减少 ¥150.00
+                        </div>
+                    </div>
+                </div>
+                <div class="calculation">
+                    <div class="calculation-title">计算过程</div>
+                    余额变化 = -¥100.00 - ¥50.00 = -¥150.00<br>
+                    新余额 = ¥1000.00 + (-¥150.00) = ¥850.00<br>
+                    新支出 = ¥500.00 + ¥150.00 = ¥650.00
+                </div>
+            </div>
+
+            <div class="test-case">
+                <div class="test-case-title">测试场景 2: 导入收入账单</div>
+                <div class="scenario">
+                    <div class="scenario-item">
+                        <strong>前置条件</strong>
+                        银行卡余额：¥5000.00<br>
+                        当月收入：¥3000.00
+                    </div>
+                    <div class="scenario-item">
+                        <strong>导入操作</strong>
+                        账户：银行卡<br>
+                        交易：收入 ¥2000.00 (工资)<br>
+                        交易：收入 ¥500.00 (奖金)
+                    </div>
+                </div>
+                <div class="result-box">
+                    <h4>预期结果</h4>
+                    <div class="scenario">
+                        <div class="scenario-item" style="background: rgba(255,255,255,0.2);">
+                            <strong style="color: white;">银行卡余额</strong>
+                            ¥5000.00 → ¥7500.00
+                        </div>
+                        <div class="scenario-item" style="background: rgba(255,255,255,0.2);">
+                            <strong style="color: white;">当月收入</strong>
+                            ¥3000.00 → ¥5500.00
+                        </div>
+                        <div class="scenario-item" style="background: rgba(255,255,255,0.2);">
+                            <strong style="color: white;">本月结余</strong>
+                            增加 ¥2500.00
+                        </div>
+                    </div>
+                </div>
+                <div class="calculation">
+                    <div class="calculation-title">计算过程</div>
+                    余额变化 = +¥2000.00 + ¥500.00 = +¥2500.00<br>
+                    新余额 = ¥5000.00 + ¥2500.00 = ¥7500.00<br>
+                    新收入 = ¥3000.00 + ¥2500.00 = ¥5500.00
+                </div>
+            </div>
+
+            <div class="tip">
+                <div class="tip-title">重要提示</div>
+                <ul style="margin: 8px 0 0 20px; padding: 0;">
+                    <li>导入时必须选择账户，否则不会更新余额</li>
+                    <li>余额变化会在浏览器控制台显示详细日志</li>
+                    <li>删除交易不会自动恢复余额，需手动调整</li>
+                    <li>余额更新是累加的，每次导入都会计算</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 功能 2 测试 -->
+        <div class="feature-section">
+            <h2>功能 2: 收入账单可选择支出分类</h2>
+            
+            <div class="test-case">
+                <div class="test-case-title">测试场景 3: 退款收入选择分类</div>
+                <div class="comparison">
+                    <div class="comparison-item before">
+                        <div class="comparison-title">❌ 优化前（限制）</div>
+                        <p style="text-align: center; color: #757575;">
+                            收入账单只能选择收入分类<br>
+                            （工资、奖金、投资收入）<br>
+                            <strong style="color: #FF9800;">无法准确表示"购物退款"</strong>
+                        </p>
+                    </div>
+                    <div class="comparison-item after">
+                        <div class="comparison-title">✅ 优化后（灵活）</div>
+                        <p style="text-align: center; color: #757575;">
+                            收入账单可以选择支出分类<br>
+                            推荐分类：工资、奖金、投资收入<br>
+                            <strong style="color: #4CAF50;">其他分类：餐饮、交通、购物 ✓</strong>
+                        </p>
+                    </div>
+                </div>
+                <div class="workflow">
+                    <div class="workflow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <strong>交易信息</strong><br>
+                            类型：收入 | 金额：+¥50.00 | 对方：淘宝退款 | 原始分类：购物退款
+                        </div>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="workflow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <strong>分类选择器显示</strong><br>
+                            ℹ️ 当前为收入账单，也可以选择下方支出分类<br>
+                            <strong>推荐分类</strong>：工资、奖金、投资收入<br>
+                            <strong>其他分类</strong>：餐饮、交通、<span style="color: #4CAF50;">购物</span>、娱乐
+                        </div>
+                    </div>
+                    <div class="arrow">↓</div>
+                    <div class="workflow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <strong>选择"购物"分类并保存</strong><br>
+                            交易类型仍为"收入"，分类显示为"购物"<br>
+                            金额显示为"+¥50.00"
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-case">
+                <div class="test-case-title">测试场景 4: 二手转卖收入</div>
+                <div class="scenario">
+                    <div class="scenario-item">
+                        <strong>交易信息</strong>
+                        类型：收入<br>
+                        金额：+¥200.00<br>
+                        对方：闲鱼买家<br>
+                        原始分类：二手交易
+                    </div>
+                    <div class="scenario-item">
+                        <strong>可选分类</strong>
+                        推荐：工资、奖金、投资收入<br>
+                        其他：餐饮、交通、<span style="color: #4CAF50;">购物</span>
+                    </div>
+                    <div class="scenario-item">
+                        <strong>推荐选择</strong>
+                        购物（支出类）<br>
+                        表示这是物品转卖收入
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip">
+                <div class="tip-title">重要说明</div>
+                <ul style="margin: 8px 0 0 20px; padding: 0;">
+                    <li>分类选择不改变交易类型（收入仍为收入）</li>
+                    <li>首页统计按交易类型计算，不按分类类型</li>
+                    <li>其他分类透明度降低（80%），提示这是跨类型选择</li>
+                    <li>智能匹配会优先推荐同名或关键词匹配的分类</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 完整流程测试 -->
+        <div class="feature-section">
+            <h2>完整工作流程测试</h2>
+            
+            <div class="workflow">
+                <div class="workflow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>打开应用并导入账单</strong><br>
+                        点击"导入账单" → 选择账户（支付宝） → 选择模板（微信支付）
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+                <div class="workflow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>上传文件并预览</strong><br>
+                        选择文件 → 查看预览（成功 5 条，失败 0 条） → 点击"确认导入"
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+                <div class="workflow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>系统自动处理</strong><br>
+                        ✓ 保存 5 条交易记录<br>
+                        ✓ 计算余额变化：-¥245.30<br>
+                        ✓ 更新支付宝余额<br>
+                        ✓ 更新当月统计数据
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+                <div class="workflow-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <strong>处理待分类交易</strong><br>
+                        进入"待处理"页面 → 点击收入账单（退款） → 选择"购物"分类 → 保存
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+                <div class="workflow-step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <strong>查看最终结果</strong><br>
+                        ✓ 首页显示更新后的统计数据<br>
+                        ✓ 账户余额已更新<br>
+                        ✓ 该交易显示"购物"分类图标
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制台日志示例 -->
+        <div class="feature-section">
+            <h2>控制台日志示例</h2>
+            
+            <div class="calculation">
+                <div class="calculation-title">浏览器控制台输出（F12 查看）</div>
+                <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto;">
+账户 支付宝 余额更新：1000.00 → 850.00 (变化：-150.00)
+账户 银行卡 余额更新：5000.00 → 7500.00 (变化：+2500.00)
+开始解析 Excel 文件... wechat
+检测到文件类型：wechat, 数据起始行：2
+解析完成：成功 5 条，跳过 2 条
+                </pre>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

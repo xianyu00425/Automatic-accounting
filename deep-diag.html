@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>费用分析深度诊断</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, monospace; padding: 20px; background: #0d1117; color: #c9d1d9; max-width: 960px; margin: 0 auto; }
+h2 { color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+h3 { color: #79c0ff; margin-top: 20px; }
+pre { background: #161b22; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; border: 1px solid #30363d; }
+.ok { color: #3fb950; } .err { color: #f85149; } .warn { color: #d29922; } .info { color: #58a6ff; }
+.btn { padding: 10px 20px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 5px; font-size: 14px; }
+.btn:hover { background: #2ea043; }
+.btn-blue { background: #1f6feb; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #30363d; font-size: 13px; }
+th { color: #58a6ff; background: #161b22; }
+.step { padding: 8px 12px; margin: 4px 0; border-left: 3px solid #30363d; background: #161b22; }
+.step.pass { border-left-color: #3fb950; }
+.step.fail { border-left-color: #f85149; }
+</style>
+</head>
+<body>
+<h2>费用分析 - 深度诊断</h2>
+<div>
+<button class="btn" onclick="runDeepDiag()">运行深度诊断</button>
+<button class="btn btn-blue" onclick="openMain()">打开主页面</button>
+</div>
+<div id="out"></div>
+
+<script src="js/app.js"></script>
+<script>
+var out = document.getElementById('out');
+function L(msg, cls) { out.innerHTML += '<pre class="' + (cls||'') + '">' + msg + '</pre>'; }
+function step(pass, msg) {
+    out.innerHTML += '<div class="step ' + (pass ? 'pass' : 'fail') + '">' + msg + '</div>';
+}
+
+function runDeepDiag() {
+    out.innerHTML = '';
+    L('===== 费用分析深度诊断 =====');
+
+    // ===== Step 1: 检查 AppState =====
+    L('--- Step 1: AppState 检查 ---');
+    var hasAS = typeof AppState !== 'undefined' && typeof window.AppState !== 'undefined';
+    step(hasAS, 'AppState 存在: ' + (hasAS ? '是' : '否'));
+
+    if (!hasAS) { L('错误: AppState 不存在，请检查 app.js 是否加载', 'err'); return; }
+
+    var cm = AppState.currentMonth;
+    step(true, 'currentMonth: ' + cm.getFullYear() + '年' + (cm.getMonth()+1) + '月 (Date对象)');
+    step(true, 'currentMonth.toISOString(): ' + cm.toISOString());
+
+    // ===== Step 2: 检查交易数据 =====
+    L('--- Step 2: 交易数据检查 ---');
+    var allTx = AppState.getTransactions();
+    step(allTx.length > 0, '交易总数: ' + allTx.length);
+
+    if (allTx.length === 0) { L('没有交易数据，请先导入账单', 'warn'); return; }
+
+    // ===== Step 3: 月份分布 =====
+    L('--- Step 3: 月份分布 ---');
+    var months = {};
+    var monthsClassified = {};
+    for (var i = 0; i < allTx.length; i++) {
+        var t = allTx[i];
+        var d = new Date(t.date);
+        if (!isNaN(d.getTime())) {
+            var key = d.getFullYear() + '-' + (d.getMonth()+1);
+            if (!months[key]) months[key] = {exp:0, inc:0, tf:0, total:0};
+            if (!monthsClassified[key]) monthsClassified[key] = {exp:0, inc:0};
+            months[key].total++;
+            if (t.type === 'expense') months[key].exp++;
+            else if (t.type === 'income') months[key].inc++;
+            else if (t.type === 'transfer') months[key].tf++;
+            // 已分类统计
+            if (t.categoryId) {
+                if (t.type === 'expense') monthsClassified[key].exp++;
+                else if (t.type === 'income') monthsClassified[key].inc++;
+            }
+        }
+    }
+    var mKeys = Object.keys(months).sort();
+    for (var m = 0; m < mKeys.length; m++) {
+        var mk = mKeys[m], mv = months[mk], mc = monthsClassified[mk];
+        var clsInfo = '(已分类: 支出' + mc.exp + ' 收入' + mc.inc + ')';
+        L('  ' + mk + '月: 总' + mv.total + ' 支出' + mv.exp + ' 收入' + mv.inc + ' 转账' + mv.tf + ' ' + clsInfo);
+    }
+
+    // ===== Step 4: 目标月份筛选 =====
+    L('--- Step 4: 目标月份筛选（模拟 aggregateByCategory）---');
+    var targetYear = cm.getFullYear();
+    var targetMonth = cm.getMonth();
+    L('目标月份: ' + targetYear + '年' + (targetMonth+1) + '月');
+
+    // 支出筛选
+    var expAll = [], expClassified = [];
+    for (var i = 0; i < allTx.length; i++) {
+        var t = allTx[i];
+        var d = new Date(t.date);
+        if (t.type === 'expense' && d.getFullYear() === targetYear && d.getMonth() === targetMonth) {
+            expAll.push(t);
+            if (t.categoryId) expClassified.push(t);
+        }
+    }
+    step(true, '全部支出交易: ' + expAll.length + ' 笔');
+    step(true, '其中已分类: ' + expClassified.length + ' 笔');
+    step(expClassified.length > 0, expClassified.length === 0 ? '警告: 该月没有已分类支出数据！' : '筛选通过');
+
+    // 收入筛选
+    var incAll = [], incClassified = [];
+    for (var i = 0; i < allTx.length; i++) {
+        var t = allTx[i];
+        var d = new Date(t.date);
+        if (t.type === 'income' && d.getFullYear() === targetYear && d.getMonth() === targetMonth) {
+            incAll.push(t);
+            if (t.categoryId) incClassified.push(t);
+        }
+    }
+    step(true, '全部收入交易: ' + incAll.length + ' 笔');
+    step(true, '其中已分类: ' + incClassified.length + ' 笔');
+
+    // ===== Step 5: 分类汇总（支出）=====
+    if (expClassified.length > 0) {
+        L('--- Step 5: 支出分类汇总 ---');
+        var catMap = {};
+        var totalExp = 0;
+        for (var k = 0; k < expClassified.length; k++) {
+            var item = expClassified[k];
+            var cat = AppState.getCategory(item.categoryId);
+            var name = cat ? cat.name : '未分类(id=' + item.categoryId + ')';
+            var amt = Math.abs(item.amount);
+            totalExp += amt;
+            catMap[name] = (catMap[name] || 0) + amt;
+        }
+        L('支出总额: ¥' + totalExp.toFixed(2));
+        var entries = [];
+        for (var nm in catMap) entries.push({name: nm, amount: catMap[nm]});
+        entries.sort(function(a,b){return b.amount-a.amount;});
+        for (var e = 0; e < entries.length; e++) {
+            var pct = totalExp > 0 ? (entries[e].amount / totalExp * 100).toFixed(1) : '0.0';
+            L('  ' + entries[e].name + ': ¥' + entries[e].amount.toFixed(2) + ' (' + pct + '%)');
+        }
+        step(entries.length > 0, '分类数量: ' + entries.length + ' 个');
+    } else if (expAll.length > 0) {
+        L('--- Step 5: 支出分类汇总 ---');
+        step(false, '该月有 ' + expAll.length + ' 笔支出交易，但全部未分类！需要先在"待分类"页面处理分类。');
+        // 显示未分类交易详情
+        L('未分类支出交易详情:');
+        for (var i = 0; i < expAll.length; i++) {
+            var t = expAll[i];
+            var d = new Date(t.date);
+            L('  [' + (i+1) + '] date=' + t.date + ' | counterparty=' + (t.counterparty||'') + ' | amount=' + t.amount + ' | categoryId=' + (t.categoryId||'NULL') + ' | isMatched=' + t.isMatched);
+        }
+    } else {
+        step(false, '该月没有任何支出交易（包括未分类）');
+    }
+
+    // ===== Step 6: 分类汇总（收入）=====
+    if (incClassified.length > 0) {
+        L('--- Step 6: 收入分类汇总 ---');
+        var catMapInc = {};
+        var totalInc = 0;
+        for (var k = 0; k < incClassified.length; k++) {
+            var item = incClassified[k];
+            var cat = AppState.getCategory(item.categoryId);
+            var name = cat ? cat.name : '未分类(id=' + item.categoryId + ')';
+            var amt = Math.abs(item.amount);
+            totalInc += amt;
+            catMapInc[name] = (catMapInc[name] || 0) + amt;
+        }
+        L('收入总额: ¥' + totalInc.toFixed(2));
+        var entriesInc = [];
+        for (var nm2 in catMapInc) entriesInc.push({name: nm2, amount: catMapInc[nm2]});
+        entriesInc.sort(function(a,b){return b.amount-a.amount;});
+        for (var e2 = 0; e2 < entriesInc.length; e2++) {
+            var pct2 = totalInc > 0 ? (entriesInc[e2].amount / totalInc * 100).toFixed(1) : '0.0';
+            L('  ' + entriesInc[e2].name + ': ¥' + entriesInc[e2].amount.toFixed(2) + ' (' + pct2 + '%)');
+        }
+    } else {
+        L('--- Step 6: 收入分类汇总 ---');
+        step(incAll.length > 0, '该月' + (incAll.length > 0 ? '有' + incAll.length + '笔收入但未分类' : '没有收入交易'));
+    }
+
+    // ===== Step 7: renderExpenseAnalysis 调用测试 =====
+    L('--- Step 7: renderExpenseAnalysis 调用测试 ---');
+    step(typeof window.renderExpenseAnalysis === 'function',
+        'window.renderExpenseAnalysis 存在: ' + (typeof window.renderExpenseAnalysis));
+
+    if (typeof window.renderExpenseAnalysis === 'function') {
+        try {
+            // 检查 debug 对象
+            L('调用前 _expenseAnalysisDebug: ' + JSON.stringify(window._expenseAnalysisDebug || {}));
+            window.renderExpenseAnalysis();
+            L('调用后 _expenseAnalysisDebug: ' + JSON.stringify(window._expenseAnalysisDebug || {}));
+
+            // 检查 DOM 更新
+            setTimeout(function() {
+                var expContainer = document.getElementById('expense-chart-container');
+                var incContainer = document.getElementById('income-chart-container');
+                step(true, '支出容器内容长度: ' + (expContainer ? expContainer.innerHTML.length : '容器不存在') + ' 字符');
+                step(true, '收入容器内容长度: ' + (incContainer ? incContainer.innerHTML.length : '容器不存在') + ' 字符');
+
+                // 检查是否有 canvas 或 expense-empty
+                if (expContainer) {
+                    var hasCanvas = expContainer.querySelector('canvas');
+                    var hasEmpty = expContainer.querySelector('.expense-empty');
+                    step(!!hasCanvas, '支出区域包含 canvas: ' + (hasCanvas ? '是' : '否'));
+                    step(!!hasEmpty, '支出区域包含 empty 状态: ' + (hasEmpty ? '是' : '否'));
+                }
+
+                L('===== 诊断完成 =====');
+                if (expClassified.length === 0 && expAll.length > 0) {
+                    L('结论: 该月有支出交易但未分类。请先在"待分类"页面处理分类，费用分析饼图才会显示数据。', 'warn');
+                } else if (expClassified.length > 0) {
+                    L('结论: 数据正常。如果主页面仍显示"暂无数据"，请刷新页面（Ctrl+Shift+R）。', 'ok');
+                } else {
+                    L('结论: 该月没有任何交易数据。请切换月份或导入账单。', 'warn');
+                }
+            }, 600);
+
+        } catch(e) {
+            step(false, '调用 renderExpenseAnalysis 出错: ' + e.message);
+        }
+    }
+}
+
+function openMain() { window.open('自动记账V8优化版.html', '_blank'); }
+
+setTimeout(runDeepDiag, 500);
+</script>
+</body>
+</html>

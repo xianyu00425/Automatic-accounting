@@ -1,0 +1,883 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>自动记账 - 智能财务管理</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- 启动页 -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-icon">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <h1 class="splash-title">自动记账</h1>
+            <p class="splash-subtitle">智能财务管理助手</p>
+            <div class="splash-loading">
+                <div class="loading-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主应用容器 -->
+    <div id="app" class="app hidden">
+        <!-- 页面内容区域 -->
+        <main class="main-content">
+            <!-- 首页 -->
+            <section id="page-home" class="page active">
+                <div class="home-header">
+                    <div class="month-selector">
+                        <button class="btn-icon" onclick="changeMonth(-1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span id="current-month">2025年4月</span>
+                        <button class="btn-icon" onclick="changeMonth(1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <button class="btn-import" onclick="showImportModal()">
+                        <i class="fas fa-file-import"></i>
+                        导入账单
+                    </button>
+                </div>
+
+                <!-- 收支卡片 -->
+                <div class="stats-cards">
+                    <div class="stat-card income">
+                        <div class="stat-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">本月收入</span>
+                            <span class="stat-amount" id="month-income">+¥0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card expense">
+                        <div class="stat-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">本月支出</span>
+                            <span class="stat-amount" id="month-expense">-¥0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card balance">
+                        <div class="stat-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">本月结余</span>
+                            <span class="stat-amount" id="month-balance">¥0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card total-balance">
+                        <div class="stat-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">账户总余额</span>
+                            <span class="stat-amount" id="total-balance">¥0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 待处理提醒 -->
+                <div class="pending-alert" id="pending-alert" onclick="switchTab('pending')">
+                    <div class="alert-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="alert-content">
+                        <span class="alert-title">有 <strong id="pending-count">0</strong> 条账单待分类</span>
+                        <span class="alert-desc">点击快速处理</span>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <!-- 预算进度 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>预算进度</h3>
+                        <button class="btn-text" onclick="showBudgetSettings()">管理</button>
+                    </div>
+                    <div class="budget-list" id="budget-list">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+
+                <!-- 最近交易 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>最近交易</h3>
+                        <button class="btn-text" onclick="switchTab('transactions')">查看全部</button>
+                    </div>
+                    <div class="transaction-list" id="recent-transactions">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 账单列表页 -->
+            <section id="page-transactions" class="page">
+                <div class="page-header">
+                    <h2>账单列表</h2>
+                    <div class="filter-bar">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="搜索商户、分类..." id="search-input" oninput="filterTransactions()">
+                        </div>
+                        <select class="filter-select" id="type-filter" onchange="filterTransactions()">
+                            <option value="all">全部</option>
+                            <option value="income">收入</option>
+                            <option value="expense">支出</option>
+                        </select>
+                        <select class="filter-select" id="account-filter" onchange="filterTransactions()">
+                            <option value="all">全部账户</option>
+                        </select>
+                    </div>
+                    <!-- 账户统计面板 -->
+                    <div class="account-stats-panel" id="account-stats-panel" style="display: none;">
+                        <div class="account-stat-item">
+                            <span class="stat-label">账户收入</span>
+                            <span class="stat-amount income" id="account-income">+¥0.00</span>
+                        </div>
+                        <div class="account-stat-item">
+                            <span class="stat-label">账户支出</span>
+                            <span class="stat-amount expense" id="account-expense">-¥0.00</span>
+                        </div>
+                        <div class="account-stat-item">
+                            <span class="stat-label">账户结余</span>
+                            <span class="stat-amount" id="account-balance">¥0.00</span>
+                        </div>
+                        <div class="account-stat-item">
+                            <span class="stat-label">交易笔数</span>
+                            <span class="stat-count" id="account-count">0</span>
+                        </div>
+                    </div>
+                    <!-- 批量操作工具栏 -->
+                    <div class="batch-toolbar" id="batch-toolbar" style="display: none;">
+                        <div class="batch-info">
+                            <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                            <label for="select-all">全选</label>
+                            <span class="batch-count">已选择 <strong id="selected-count">0</strong> 项</span>
+                        </div>
+                        <div class="batch-actions">
+                            <button class="btn-danger" onclick="batchDelete()">
+                                <i class="fas fa-trash"></i> 批量删除
+                            </button>
+                            <button class="btn-secondary" onclick="cancelBatchMode()">
+                                取消
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 进入批量模式按钮 -->
+                    <div class="batch-enter" id="batch-enter">
+                        <button class="btn-text" onclick="enterBatchMode()">
+                            <i class="fas fa-check-square"></i> 批量选择
+                        </button>
+                    </div>
+                </div>
+                <div class="transaction-list full" id="transaction-list">
+                    <!-- 动态生成 -->
+                </div>
+            </section>
+
+            <!-- 待处理页 -->
+            <section id="page-pending" class="page">
+                <div class="page-header">
+                    <h2>待处理账单 <span class="badge" id="pending-badge">0</span></h2>
+                    <button class="btn-primary" onclick="batchProcess()">
+                        <i class="fas fa-magic"></i>
+                        批量处理
+                    </button>
+                </div>
+                <div class="pending-list" id="pending-list">
+                    <!-- 动态生成 -->
+                </div>
+            </section>
+
+            <!-- 设置页 -->
+            <section id="page-settings" class="page">
+                <div class="page-header">
+                    <h2>设置</h2>
+                </div>
+                <div class="settings-list">
+                    <div class="setting-item" onclick="showAccountSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">账户管理</span>
+                            <span class="setting-desc">管理支付宝、微信、银行卡等账户</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showCategorySettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">分类管理</span>
+                            <span class="setting-desc">管理收入和支出分类</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showRuleSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);">
+                            <i class="fas fa-ruler-combined"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">规则管理</span>
+                            <span class="setting-desc">设置自动分类规则</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showBudgetSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">预算设置</span>
+                            <span class="setting-desc">设置月度/年度预算</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showDataSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #607D8B 0%, #455A64 100%);">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">数据管理</span>
+                            <span class="setting-desc">导入/导出/备份数据</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部导航 -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-page="home" onclick="switchTab('home')">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </button>
+            <button class="nav-item" data-page="transactions" onclick="switchTab('transactions')">
+                <i class="fas fa-list"></i>
+                <span>账单</span>
+            </button>
+            <button class="nav-item" data-page="pending" onclick="switchTab('pending')">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>待处理</span>
+                <span class="nav-badge" id="nav-badge">0</span>
+            </button>
+            <button class="nav-item" data-page="settings" onclick="switchTab('settings')">
+                <i class="fas fa-cog"></i>
+                <span>设置</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 导入弹窗 -->
+    <div id="import-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>导入账单</h3>
+                <button class="btn-close" onclick="closeModal('import-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">选择账户</label>
+                    <select class="form-select" id="import-account">
+                        <option value="">请选择账户...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">选择模板类型</label>
+                    <select class="form-select" id="import-template" onchange="updateTemplateDesc()">
+                        <option value="">请选择模板...</option>
+                        <option value="wechat">微信支付</option>
+                        <option value="alipay">支付宝</option>
+                    </select>
+                    <p class="form-hint" id="template-desc"></p>
+                </div>
+                <div class="import-options">
+                    <div class="import-option" onclick="selectTemplateAndImport('file')">
+                        <div class="option-icon">
+                            <i class="fas fa-file-excel"></i>
+                        </div>
+                        <span class="option-title">从文件导入</span>
+                        <span class="option-desc">支持 CSV、Excel 格式</span>
+                    </div>
+                    <div class="import-option" onclick="selectTemplateAndImport('paste')">
+                        <div class="option-icon">
+                            <i class="fas fa-paste"></i>
+                        </div>
+                        <span class="option-title">粘贴数据</span>
+                        <span class="option-desc">粘贴 CSV 文本内容</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预览导入弹窗 -->
+    <div id="preview-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>导入预览</h3>
+                <button class="btn-close" onclick="closeModal('preview-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">成功解析</span>
+                        <span class="summary-value success" id="preview-success-count">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">解析失败</span>
+                        <span class="summary-value error" id="preview-error-count">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">跳过行数</span>
+                        <span class="summary-value warning" id="preview-skip-count">0</span>
+                    </div>
+                </div>
+                <div class="preview-table-container">
+                    <table class="preview-table" id="preview-table">
+                        <thead>
+                            <tr>
+                                <th>交易时间</th>
+                                <th>交易对方</th>
+                                <th>金额</th>
+                                <th>类型</th>
+                                <th>分类</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-tbody">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="preview-errors" id="preview-errors">
+                    <!-- 错误信息 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('preview-modal')">取消</button>
+                <button class="btn-primary" onclick="confirmImport()">
+                    <i class="fas fa-check"></i> 确认导入
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 粘贴导入弹窗 -->
+    <div id="paste-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>粘贴 CSV 数据</h3>
+                <button class="btn-close" onclick="closeModal('paste-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">数据格式说明</label>
+                    <p class="form-hint">支持格式：时间,金额,类型,商户,分类,账户</p>
+                </div>
+                <textarea class="paste-area" id="paste-content" placeholder="在此粘贴 CSV 数据...
+示例：
+2024-01-15,35.50,支出,麦当劳,餐饮,支付宝
+2024-01-15,128.00,支出,滴滴出行,交通,微信"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('paste-modal')">取消</button>
+                <button class="btn-primary" onclick="processPastedData()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 处理账单弹窗 -->
+    <div id="process-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>处理账单</h3>
+                <button class="btn-close" onclick="closeModal('process-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="transaction-preview" id="process-preview">
+                    <!-- 动态生成 -->
+                </div>
+                <div class="category-selector">
+                    <h4>选择分类</h4>
+                    <div class="category-grid" id="category-grid">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="create-rule" checked>
+                    <span>为此商户创建自动分类规则</span>
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('process-modal')">取消</button>
+                <button class="btn-primary" onclick="saveTransaction()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 交易详情弹窗 -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>账单详情</h3>
+                <button class="btn-close" onclick="closeModal('detail-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-content" id="detail-content">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-danger" onclick="deleteTransaction()">
+                    <i class="fas fa-trash"></i> 删除
+                </button>
+                <button class="btn-primary" onclick="showEditTransactionModal()">
+                    <i class="fas fa-edit"></i> 编辑
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑交易弹窗 -->
+    <div id="edit-transaction-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>编辑账单</h3>
+                <button class="btn-close" onclick="closeModal('edit-transaction-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">金额</label>
+                    <input type="number" class="form-input" id="edit-amount" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">类型</label>
+                    <select class="form-select" id="edit-type">
+                        <option value="expense">支出</option>
+                        <option value="income">收入</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">商户/对方</label>
+                    <input type="text" class="form-input" id="edit-counterparty" placeholder="输入商户名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">分类</label>
+                    <select class="form-select" id="edit-category">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">账户</label>
+                    <select class="form-select" id="edit-account">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">日期时间</label>
+                    <input type="datetime-local" class="form-input" id="edit-date">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <textarea class="form-textarea" id="edit-note" placeholder="添加备注..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('edit-transaction-modal')">取消</button>
+                <button class="btn-primary" onclick="saveEditTransaction()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 账户管理弹窗 -->
+    <div id="account-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>账户管理</h3>
+                <button class="btn-close" onclick="closeModal('account-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddAccountModal()">
+                        <i class="fas fa-plus"></i> 添加账户
+                    </button>
+                </div>
+                <div class="account-list" id="account-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑账户弹窗 -->
+    <div id="account-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="account-modal-title">添加账户</h3>
+                <button class="btn-close" onclick="closeModal('account-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">账户名称</label>
+                    <input type="text" class="form-input" id="account-name" placeholder="如：支付宝、微信、招商银行">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">账户类型</label>
+                    <select class="form-select" id="account-type">
+                        <option value="alipay">支付宝</option>
+                        <option value="wechat">微信支付</option>
+                        <option value="bank">银行卡</option>
+                        <option value="cash">现金</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">初始余额</label>
+                    <input type="number" class="form-input" id="account-balance" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">图标颜色</label>
+                    <div class="color-picker" id="account-color-picker">
+                        <div class="color-option selected" style="background: #2196F3" data-color="#2196F3"></div>
+                        <div class="color-option" style="background: #4CAF50" data-color="#4CAF50"></div>
+                        <div class="color-option" style="background: #FF9800" data-color="#FF9800"></div>
+                        <div class="color-option" style="background: #E91E63" data-color="#E91E63"></div>
+                        <div class="color-option" style="background: #9C27B0" data-color="#9C27B0"></div>
+                        <div class="color-option" style="background: #607D8B" data-color="#607D8B"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('account-modal')">取消</button>
+                <button class="btn-primary" onclick="saveAccount()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类管理弹窗 -->
+    <div id="category-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>分类管理</h3>
+                <button class="btn-close" onclick="closeModal('category-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="switchCategoryTab('expense')">支出</button>
+                    <button class="tab-btn" onclick="switchCategoryTab('income')">收入</button>
+                </div>
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddCategoryModal()">
+                        <i class="fas fa-plus"></i> 添加分类
+                    </button>
+                </div>
+                <div class="category-manage-list" id="category-manage-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑分类弹窗 -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="category-modal-title">添加分类</h3>
+                <button class="btn-close" onclick="closeModal('category-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">分类名称</label>
+                    <input type="text" class="form-input" id="category-name" placeholder="输入分类名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">分类类型</label>
+                    <select class="form-select" id="category-type">
+                        <option value="expense">支出</option>
+                        <option value="income">收入</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">图标</label>
+                    <div class="icon-picker" id="category-icon-picker">
+                        <div class="icon-option selected" data-icon="fa-utensils"><i class="fas fa-utensils"></i></div>
+                        <div class="icon-option" data-icon="fa-car"><i class="fas fa-car"></i></div>
+                        <div class="icon-option" data-icon="fa-shopping-bag"><i class="fas fa-shopping-bag"></i></div>
+                        <div class="icon-option" data-icon="fa-gamepad"><i class="fas fa-gamepad"></i></div>
+                        <div class="icon-option" data-icon="fa-home"><i class="fas fa-home"></i></div>
+                        <div class="icon-option" data-icon="fa-hospital"><i class="fas fa-hospital"></i></div>
+                        <div class="icon-option" data-icon="fa-graduation-cap"><i class="fas fa-graduation-cap"></i></div>
+                        <div class="icon-option" data-icon="fa-money-bill-wave"><i class="fas fa-money-bill-wave"></i></div>
+                        <div class="icon-option" data-icon="fa-gift"><i class="fas fa-gift"></i></div>
+                        <div class="icon-option" data-icon="fa-chart-line"><i class="fas fa-chart-line"></i></div>
+                        <div class="icon-option" data-icon="fa-plane"><i class="fas fa-plane"></i></div>
+                        <div class="icon-option" data-icon="fa-tshirt"><i class="fas fa-tshirt"></i></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">颜色</label>
+                    <div class="color-picker" id="category-color-picker">
+                        <div class="color-option selected" style="background: #FF9800" data-color="#FF9800"></div>
+                        <div class="color-option" style="background: #2196F3" data-color="#2196F3"></div>
+                        <div class="color-option" style="background: #4CAF50" data-color="#4CAF50"></div>
+                        <div class="color-option" style="background: #E91E63" data-color="#E91E63"></div>
+                        <div class="color-option" style="background: #9C27B0" data-color="#9C27B0"></div>
+                        <div class="color-option" style="background: #F44336" data-color="#F44336"></div>
+                        <div class="color-option" style="background: #795548" data-color="#795548"></div>
+                        <div class="color-option" style="background: #607D8B" data-color="#607D8B"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('category-modal')">取消</button>
+                <button class="btn-primary" onclick="saveCategory()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 规则管理弹窗 -->
+    <div id="rule-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>规则管理</h3>
+                <button class="btn-close" onclick="closeModal('rule-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddRuleModal()">
+                        <i class="fas fa-plus"></i> 添加规则
+                    </button>
+                </div>
+                <div class="rule-list" id="rule-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑规则弹窗 -->
+    <div id="rule-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="rule-modal-title">添加规则</h3>
+                <button class="btn-close" onclick="closeModal('rule-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">规则名称</label>
+                    <input type="text" class="form-input" id="rule-name" placeholder="如：麦当劳自动分类">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">匹配字段</label>
+                    <select class="form-select" id="rule-field">
+                        <option value="counterparty">商户/对方</option>
+                        <option value="categoryRaw">原始分类</option>
+                        <option value="note">备注</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">匹配方式</label>
+                    <select class="form-select" id="rule-match-type">
+                        <option value="contains">包含</option>
+                        <option value="equals">等于</option>
+                        <option value="startsWith">开头是</option>
+                        <option value="endsWith">结尾是</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">关键词</label>
+                    <input type="text" class="form-input" id="rule-keyword" placeholder="输入匹配关键词">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">自动分类到</label>
+                    <select class="form-select" id="rule-category">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">优先级</label>
+                    <input type="number" class="form-input" id="rule-priority" value="0" min="0" max="100">
+                    <p class="form-hint">数字越大优先级越高</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('rule-modal')">取消</button>
+                <button class="btn-primary" onclick="saveRule()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预算设置弹窗 -->
+    <div id="budget-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>预算设置</h3>
+                <button class="btn-close" onclick="closeModal('budget-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddBudgetModal()">
+                        <i class="fas fa-plus"></i> 添加预算
+                    </button>
+                </div>
+                <div class="budget-manage-list" id="budget-manage-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑预算弹窗 -->
+    <div id="budget-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="budget-modal-title">添加预算</h3>
+                <button class="btn-close" onclick="closeModal('budget-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">预算类型</label>
+                    <select class="form-select" id="budget-type">
+                        <option value="total">总预算</option>
+                        <option value="category">分类预算</option>
+                    </select>
+                </div>
+                <div class="form-group" id="budget-category-group" style="display: none;">
+                    <label class="form-label">选择分类</label>
+                    <select class="form-select" id="budget-category">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">预算周期</label>
+                    <select class="form-select" id="budget-period">
+                        <option value="month">月度</option>
+                        <option value="year">年度</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">预算金额</label>
+                    <input type="number" class="form-input" id="budget-amount" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('budget-modal')">取消</button>
+                <button class="btn-primary" onclick="saveBudget()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据管理弹窗 -->
+    <div id="data-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>数据管理</h3>
+                <button class="btn-close" onclick="closeModal('data-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="data-stats">
+                    <div class="data-stat-item">
+                        <span class="data-stat-value" id="data-transaction-count">0</span>
+                        <span class="data-stat-label">交易记录</span>
+                    </div>
+                    <div class="data-stat-item">
+                        <span class="data-stat-value" id="data-category-count">0</span>
+                        <span class="data-stat-label">分类</span>
+                    </div>
+                    <div class="data-stat-item">
+                        <span class="data-stat-value" id="data-rule-count">0</span>
+                        <span class="data-stat-label">规则</span>
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <h4>数据导入/导出</h4>
+                    <div class="data-actions">
+                        <button class="btn-secondary btn-block" onclick="exportData()">
+                            <i class="fas fa-download"></i> 导出数据 (JSON)
+                        </button>
+                        <button class="btn-secondary btn-block" onclick="document.getElementById('import-file').click()">
+                            <i class="fas fa-upload"></i> 导入数据 (JSON)
+                        </button>
+                        <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(this)">
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <h4>危险操作</h4>
+                    <button class="btn-danger btn-block" onclick="clearAllData()">
+                        <i class="fas fa-trash-alt"></i> 清空所有数据
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message">操作成功</span>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-body text-center">
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: var(--warning-color); margin-bottom: 16px;"></i>
+                <h3 id="confirm-title">确认删除？</h3>
+                <p id="confirm-message">此操作无法撤销</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('confirm-modal')">取消</button>
+                <button class="btn-danger" id="confirm-btn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
+

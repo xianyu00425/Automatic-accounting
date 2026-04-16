@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实时诊断</title>
+<style>
+body { font-family: monospace; padding: 20px; background: #0a0a0a; color: #0f0; max-width: 900px; margin: 0 auto; }
+h2 { color: #4CAF50; border-bottom: 2px solid #4CAF50; padding-bottom: 8px; }
+pre { background: #1a1a1a; padding: 12px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; }
+.btn { padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px; }
+.btn:hover { background: #1976D2; }
+.ok { color: #4CAF50; }
+.err { color: #F44336; }
+.warn { color: #FF9800; }
+</style>
+</head>
+<body>
+<h2>费用分析 - 实时诊断</h2>
+<div id="btns">
+<button class="btn" onclick="runDiag()">运行完整诊断</button>
+<button class="btn" onclick="callRender()">手动调用 renderExpenseAnalysis</button>
+</div>
+<div id="out"></div>
+
+<script src="js/app.js"></script>
+<script>
+var out = document.getElementById('out');
+function L(msg, cls) { out.innerHTML += '<pre class="' + (cls||'') + '">' + msg + '</pre>'; }
+
+function runDiag() {
+    out.innerHTML = '';
+    L('=== 诊断开始 ===');
+
+    // 1. 检查 AppState
+    L('1. window.AppState: ' + (typeof window.AppState), typeof window.AppState === 'object' ? 'ok' : 'err');
+    if (!window.AppState) { L('AppState 不存在!', 'err'); return; }
+
+    // 2. 检查 currentMonth
+    var cm = AppState.currentMonth;
+    L('2. AppState.currentMonth: ' + cm.toISOString(), 'ok');
+    L('   对应年月: ' + cm.getFullYear() + '年' + (cm.getMonth()+1) + '月');
+
+    // 3. 检查交易数据
+    var tx = AppState.getTransactions();
+    L('3. 交易总数: ' + tx.length, tx.length > 0 ? 'ok' : 'warn');
+
+    if (tx.length === 0) {
+        L('没有交易数据，请先导入账单！', 'warn');
+        return;
+    }
+
+    // 4. 显示前5条交易的日期解析
+    L('4. 前5条交易日期解析:');
+    for (var i = 0; i < tx.length && i < 5; i++) {
+        var d = new Date(tx[i].date);
+        var valid = !isNaN(d.getTime());
+        L('   [' + i + '] ' + tx[i].date + ' -> ' + (valid ? d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' : 'INVALID') + ' type=' + tx[i].type, valid ? 'ok' : 'err');
+    }
+
+    // 5. 按月统计
+    var months = {};
+    for (var i = 0; i < tx.length; i++) {
+        var d2 = new Date(tx[i].date);
+        if (!isNaN(d2.getTime())) {
+            var key = d2.getFullYear() + '-' + (d2.getMonth()+1);
+            if (!months[key]) months[key] = {exp:0, inc:0, tf:0};
+            if (tx[i].type === 'expense') months[key].exp++;
+            else if (tx[i].type === 'income') months[key].inc++;
+            else if (tx[i].type === 'transfer') months[key].tf++;
+        }
+    }
+    L('5. 月份分布:');
+    var keys = Object.keys(months).sort();
+    for (var k = 0; k < keys.length; k++) {
+        L('   ' + keys[k] + '月: 支出' + months[keys[k]].exp + ' 收入' + months[keys[k]].inc + ' 转账' + months[keys[k]].tf);
+    }
+
+    // 6. 筛选当前月份
+    var tYear = cm.getFullYear();
+    var tMonth = cm.getMonth();
+    var expTx = [], incTx = [];
+    for (var i = 0; i < tx.length; i++) {
+        var d3 = new Date(tx[i].date);
+        if (d3.getFullYear() === tYear && d3.getMonth() === tMonth) {
+            if (tx[i].type === 'expense') expTx.push(tx[i]);
+            if (tx[i].type === 'income') incTx.push(tx[i]);
+        }
+    }
+    L('6. 筛选 ' + tYear + '年' + (tMonth+1) + '月:');
+    L('   支出: ' + expTx.length + ' 笔', expTx.length > 0 ? 'ok' : 'warn');
+    L('   收入: ' + incTx.length + ' 笔', incTx.length > 0 ? 'ok' : 'warn');
+
+    // 7. 检查 renderExpenseAnalysis
+    L('7. window.renderExpenseAnalysis: ' + (typeof window.renderExpenseAnalysis), typeof window.renderExpenseAnalysis === 'function' ? 'ok' : 'err');
+
+    if (typeof window.renderExpenseAnalysis !== 'function') {
+        L('费用分析模块未加载！', 'err');
+        L('可能原因: IIFE 执行出错或被跳过', 'warn');
+    }
+
+    L('=== 诊断完成 ===');
+}
+
+function callRender() {
+    out.innerHTML = '';
+    L('=== 手动调用 renderExpenseAnalysis ===');
+
+    if (typeof window.renderExpenseAnalysis !== 'function') {
+        L('window.renderExpenseAnalysis 不存在！', 'err');
+
+        // 尝试查找问题
+        L('检查 IIFE 变量:');
+        L('  expenseAnalysisModule: ' + (typeof expenseAnalysisModule));
+        return;
+    }
+
+    var cm = AppState.currentMonth;
+    L('调用前 currentMonth: ' + cm.getFullYear() + '年' + (cm.getMonth()+1) + '月');
+    L('调用 renderExpenseAnalysis()...');
+
+    try {
+        window.renderExpenseAnalysis();
+        L('调用完成，无异常', 'ok');
+    } catch(e) {
+        L('调用出错: ' + e.message, 'err');
+    }
+
+    L('请查看页面上的费用分析区域是否已更新');
+}
+
+// 自动运行
+setTimeout(runDiag, 1000);
+</script>
+</body>
+</html>

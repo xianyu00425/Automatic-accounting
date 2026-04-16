@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>快速测试</title>
+<style>
+body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #e0e0e0; }
+pre { background: #16213e; padding: 10px; border-radius: 6px; white-space: pre-wrap; }
+.ok { color: #4CAF50; } .err { color: #F44336; } .warn { color: #FF9800; }
+button { padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 5px; }
+</style>
+</head>
+<body>
+<h2>快速测试费用分析</h2>
+<button onclick="runTest()">运行测试</button>
+<button onclick="openMain()">打开主页面</button>
+<div id="out"></div>
+<script>
+var out = document.getElementById('out');
+function L(msg, cls) { out.innerHTML += '<pre class="' + (cls||'') + '">' + msg + '</pre>'; }
+
+function runTest() {
+    out.innerHTML = '';
+    L('=== 测试开始 ===');
+
+    // 检查 localStorage
+    var txRaw = localStorage.getItem('transactions');
+    if (!txRaw) { L('localStorage 中没有 transactions', 'warn'); return; }
+    var tx = JSON.parse(txRaw);
+    L('交易总数: ' + tx.length, 'ok');
+
+    // 月份分布
+    var months = {};
+    for (var i = 0; i < tx.length; i++) {
+        var d = new Date(tx[i].date);
+        if (!isNaN(d.getTime())) {
+            var key = d.getFullYear() + '-' + (d.getMonth()+1);
+            if (!months[key]) months[key] = {exp:0, inc:0};
+            if (tx[i].type === 'expense') months[key].exp++;
+            if (tx[i].type === 'income') months[key].inc++;
+        }
+    }
+    var keys = Object.keys(months).sort();
+    L('月份分布:');
+    for (var k = 0; k < keys.length; k++) {
+        L('  ' + keys[k] + '月: 支出' + months[keys[k]].exp + '笔, 收入' + months[keys[k]].inc + '笔');
+    }
+
+    // 检查分类
+    var catRaw = localStorage.getItem('categories');
+    var cats = catRaw ? JSON.parse(catRaw) : [];
+    L('分类总数: ' + cats.length);
+    var catMap = {};
+    for (var c = 0; c < cats.length; c++) {
+        catMap[cats[c].id] = cats[c];
+    }
+
+    // 模拟 aggregateByCategory for 2026年3月 expense
+    var targetYear = 2026, targetMonth = 2; // 3月
+    var filtered = [];
+    for (var i = 0; i < tx.length; i++) {
+        var t = tx[i];
+        var date = new Date(t.date);
+        if (t.type === 'expense' && date.getFullYear() === targetYear && date.getMonth() === targetMonth) {
+            filtered.push(t);
+        }
+    }
+    L('3月支出筛选结果: ' + filtered.length + ' 笔', filtered.length > 0 ? 'ok' : 'err');
+
+    var categoryMap = {}, totalAmount = 0;
+    for (var k = 0; k < filtered.length; k++) {
+        var item = filtered[k];
+        var cat = catMap[item.categoryId];
+        var name = cat ? cat.name : '未分类 (id=' + item.categoryId + ')';
+        var amount = Math.abs(item.amount);
+        totalAmount += amount;
+        categoryMap[name] = (categoryMap[name] || 0) + amount;
+    }
+    L('3月支出总额: ¥' + totalAmount.toFixed(2));
+    var entries = [];
+    for (var nm in categoryMap) entries.push({name: nm, amount: categoryMap[nm]});
+    entries.sort(function(a,b){return b.amount-a.amount;});
+    for (var e = 0; e < entries.length; e++) {
+        var pct = totalAmount > 0 ? ((entries[e].amount / totalAmount) * 100).toFixed(1) : 0;
+        L('  ' + entries[e].name + ': ¥' + entries[e].amount.toFixed(2) + ' (' + pct + '%)');
+    }
+
+    // 模拟收入
+    var filteredInc = [];
+    for (var i = 0; i < tx.length; i++) {
+        var t = tx[i];
+        var date = new Date(t.date);
+        if (t.type === 'income' && date.getFullYear() === targetYear && date.getMonth() === targetMonth) {
+            filteredInc.push(t);
+        }
+    }
+    L('3月收入筛选结果: ' + filteredInc.length + ' 笔', filteredInc.length > 0 ? 'ok' : 'warn');
+
+    L('=== 测试完成 ===');
+    L('如果上面数据正常，说明数据层没问题。请点击"打开主页面"查看费用分析是否显示。');
+}
+
+function openMain() {
+    window.open('自动记账V8优化版.html', '_blank');
+}
+</script>
+</body>
+</html>

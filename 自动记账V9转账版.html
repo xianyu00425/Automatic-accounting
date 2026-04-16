@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>自动记账 V9 - 智能财务管理</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* ===== V9 视觉优化样式 ===== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --income-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --expense-gradient: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+            --balance-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --transfer-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            --card-shadow: 0 10px 40px -10px rgba(0,0,0,0.1);
+            --card-hover-shadow: 0 20px 60px -15px rgba(0,0,0,0.15);
+        }
+
+        /* 启动页优化 */
+        .splash-screen {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        }
+        .splash-icon {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* 统计卡片优化 - 玻璃拟态效果 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 0 16px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(255,255,255,0.5);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+        .stat-card.income::before { background: var(--income-gradient); }
+        .stat-card.expense::before { background: var(--expense-gradient); }
+        .stat-card.balance::before { background: var(--balance-gradient); }
+        .stat-card.total-balance::before { background: var(--primary-gradient); }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-hover-shadow);
+        }
+        .stat-card .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+        .stat-card.income .stat-icon { background: rgba(17,153,142,0.1); color: #11998e; }
+        .stat-card.expense .stat-icon { background: rgba(252,74,26,0.1); color: #fc4a1a; }
+        .stat-card.balance .stat-icon { background: rgba(79,172,254,0.1); color: #4facfe; }
+        .stat-card.total-balance .stat-icon { background: rgba(102,126,234,0.1); color: #667eea; }
+        .stat-card .stat-label {
+            font-size: 12px;
+            color: #8b92a8;
+            margin-bottom: 4px;
+        }
+        .stat-card .stat-amount {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .stat-card.income .stat-amount { color: #11998e; }
+        .stat-card.expense .stat-amount { color: #fc4a1a; }
+        .stat-card.balance .stat-amount { color: #4facfe; }
+        .stat-card.total-balance .stat-amount { color: #667eea; }
+
+        /* 费用分析区域 */
+        .expense-analysis-section {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-radius: 24px;
+            margin: 0 16px 16px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+        }
+        .expense-analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .expense-analysis-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .expense-analysis-title i {
+            color: #ff6b6b;
+        }
+        .expense-total {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ff6b6b;
+        }
+        .expense-chart-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .expense-chart {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            flex-shrink: 0;
+        }
+        .expense-chart canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .expense-chart-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .expense-chart-center .label {
+            font-size: 11px;
+            color: #888;
+        }
+        .expense-chart-center .value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ff6b6b;
+        }
+        .expense-legend {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .expense-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .expense-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .expense-legend-info {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+        }
+        .expense-legend-name {
+            color: #555;
+        }
+        .expense-legend-value {
+            font-weight: 600;
+            color: #333;
+        }
+        .expense-legend-percent {
+            font-size: 11px;
+            color: #888;
+            margin-left: 4px;
+        }
+        .expense-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #888;
+        }
+        .expense-empty i {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* 待处理提醒优化 */
+        .pending-alert {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-radius: 16px;
+            margin: 0 16px 16px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--card-shadow);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .pending-alert:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-hover-shadow);
+        }
+        .pending-alert .alert-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 22px;
+            box-shadow: 0 4px 15px rgba(255,107,107,0.3);
+        }
+        .pending-alert .alert-content {
+            flex: 1;
+        }
+        .pending-alert .alert-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .pending-alert .alert-title strong {
+            color: #ff6b6b;
+            font-size: 18px;
+        }
+        .pending-alert .alert-desc {
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* 预算进度优化 */
+        .section-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            margin: 0 16px 16px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .section-header h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-header h3::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: var(--primary-gradient);
+            border-radius: 2px;
+        }
+        .btn-text {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        /* 底部导航优化 */
+        .bottom-nav {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        .nav-item.active {
+            color: #667eea;
+        }
+        .nav-item.active i {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 导入按钮优化 */
+        .btn-import {
+            background: var(--primary-gradient);
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+            transition: all 0.3s ease;
+        }
+        .btn-import:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+        }
+
+        /* 月份选择器优化 */
+        .month-selector {
+            background: rgba(255,255,255,0.9);
+            border-radius: 25px;
+            padding: 8px 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .month-selector span {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* ===== V9 转账功能样式 ===== */
+        .transfer-accounts {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .transfer-arrow {
+            text-align: center;
+            padding: 8px 0;
+            color: #667eea;
+            font-size: 20px;
+        }
+        .transfer-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .transaction-type-transfer {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #5a67d8;
+        }
+        .type-badge.transfer {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #5a67d8;
+        }
+    </style>
+</head>
+<body>
+    <!-- 启动页 -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-icon">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <h1 class="splash-title">自动记账 V9</h1>
+            <p class="splash-subtitle">智能财务管理助手</p>
+            <div class="splash-loading">
+                <div class="loading-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主应用容器 -->
+    <div id="app" class="app hidden">
+        <!-- 页面内容区域 -->
+        <main class="main-content">
+            <!-- 首页 -->
+            <section id="page-home" class="page active">
+                <div class="home-header">
+                    <div class="month-selector">
+                        <button class="btn-icon" onclick="changeMonth(-1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span id="current-month">2025年4月</span>
+                        <button class="btn-icon" onclick="changeMonth(1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <button class="btn-import" onclick="showImportModal()">
+                        <i class="fas fa-file-import"></i>
+                        导入账单
+                    </button>
+                </div>
+
+                <!-- 收支卡片 -->
+                <div class="stats-cards">
+                    <div class="stat-card income">
+                        <div class="stat-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">本月收入</span>
+                            <span class="stat-amount" id="month-income">+¥0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card expense">
+                        <div class="stat-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">本月支出</span>
+                            <span class="stat-amount" id="month-expense">-¥0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card balance">
+                        <div class="stat-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">本月结余</span>
+                            <span class="stat-amount" id="month-balance">¥0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card total-balance">
+                        <div class="stat-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">账户总余额</span>
+                            <span class="stat-amount" id="total-balance">¥0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 待处理提醒 -->
+                <div class="pending-alert" id="pending-alert" onclick="switchTab('pending')" style="display: none;">
+                    <div class="alert-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="alert-content">
+                        <span class="alert-title">有 <strong id="pending-count">0</strong> 条账单待分类</span>
+                        <span class="alert-desc">点击快速处理</span>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <!-- 费用分析占比图表 -->
+                <div class="expense-analysis-section" id="expense-analysis-section">
+                    <div class="expense-analysis-header">
+                        <div class="expense-analysis-title">
+                            <i class="fas fa-chart-pie"></i>
+                            费用分析
+                        </div>
+                        <div class="expense-total" id="expense-total">¥0.00</div>
+                    </div>
+                    <div class="expense-chart-container" id="expense-chart-container">
+                        <div class="expense-empty" id="expense-empty">
+                            <i class="fas fa-chart-pie"></i>
+                            <p>暂无支出数据</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 预算进度 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>预算进度</h3>
+                        <button class="btn-text" onclick="showBudgetSettings()">管理</button>
+                    </div>
+                    <div class="budget-list" id="budget-list">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 账单列表页 -->
+            <section id="page-transactions" class="page">
+                <div class="page-header">
+                    <h2>账单列表</h2>
+                    <div class="filter-bar">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="搜索商户、分类..." id="search-input" oninput="filterTransactions()">
+                        </div>
+                        <select class="filter-select" id="type-filter" onchange="filterTransactions()">
+                            <option value="all">全部</option>
+                            <option value="income">收入</option>
+                            <option value="expense">支出</option>
+                            <option value="transfer">转账</option>
+                        </select>
+                        <select class="filter-select" id="account-filter" onchange="filterTransactions()">
+                            <option value="all">全部账户</option>
+                        </select>
+                    </div>
+                    <!-- 账户统计面板 -->
+                    <div class="account-stats-panel" id="account-stats-panel" style="display: none;">
+                        <div class="account-stat-item">
+                            <span class="stat-label">账户收入</span>
+                            <span class="stat-amount income" id="account-income">+¥0.00</span>
+                        </div>
+                        <div class="account-stat-item">
+                            <span class="stat-label">账户支出</span>
+                            <span class="stat-amount expense" id="account-expense">-¥0.00</span>
+                        </div>
+                        <div class="account-stat-item">
+                            <span class="stat-label">账户结余</span>
+                            <span class="stat-amount" id="account-balance">¥0.00</span>
+                        </div>
+                        <div class="account-stat-item">
+                            <span class="stat-label">交易笔数</span>
+                            <span class="stat-count" id="account-count">0</span>
+                        </div>
+                    </div>
+                    <!-- 批量操作工具栏 -->
+                    <div class="batch-toolbar" id="batch-toolbar" style="display: none;">
+                        <div class="batch-info">
+                            <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                            <label for="select-all">全选</label>
+                            <span class="batch-count">已选择 <strong id="selected-count">0</strong> 项</span>
+                        </div>
+                        <div class="batch-actions">
+                            <button class="btn-danger" onclick="batchDelete()">
+                                <i class="fas fa-trash"></i> 批量删除
+                            </button>
+                            <button class="btn-secondary" onclick="cancelBatchMode()">
+                                取消
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 进入批量模式按钮 -->
+                    <div class="batch-enter" id="batch-enter">
+                        <button class="btn-text" onclick="enterBatchMode()">
+                            <i class="fas fa-check-square"></i> 批量选择
+                        </button>
+                    </div>
+                </div>
+                <div class="transaction-list full" id="transaction-list">
+                    <!-- 动态生成 -->
+                </div>
+            </section>
+
+            <!-- 待处理页 -->
+            <section id="page-pending" class="page">
+                <div class="page-header">
+                    <h2>待处理账单 <span class="badge" id="pending-badge">0</span></h2>
+                    <button class="btn-primary" onclick="batchProcess()">
+                        <i class="fas fa-magic"></i>
+                        批量处理
+                    </button>
+                </div>
+                <div class="pending-list" id="pending-list">
+                    <!-- 动态生成 -->
+                </div>
+            </section>
+
+            <!-- 设置页 -->
+            <section id="page-settings" class="page">
+                <div class="page-header">
+                    <h2>设置</h2>
+                </div>
+                <div class="settings-list">
+                    <div class="setting-item" onclick="showAccountSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">账户管理</span>
+                            <span class="setting-desc">管理支付宝、微信、银行卡等账户</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showCategorySettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">分类管理</span>
+                            <span class="setting-desc">管理收入、支出和转账分类</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showRuleSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);">
+                            <i class="fas fa-ruler-combined"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">规则管理</span>
+                            <span class="setting-desc">设置自动分类规则</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showBudgetSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">预算设置</span>
+                            <span class="setting-desc">设置月度/年度预算</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="setting-item" onclick="showDataSettings()">
+                        <div class="setting-icon" style="background: linear-gradient(135deg, #607D8B 0%, #455A64 100%);">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-title">数据管理</span>
+                            <span class="setting-desc">导入/导出/备份数据</span>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部导航 -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-page="home" onclick="switchTab('home')">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </button>
+            <button class="nav-item" data-page="transactions" onclick="switchTab('transactions')">
+                <i class="fas fa-list"></i>
+                <span>账单</span>
+            </button>
+            <button class="nav-item" data-page="pending" onclick="switchTab('pending')">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>待处理</span>
+                <span class="nav-badge" id="nav-badge">0</span>
+            </button>
+            <button class="nav-item" data-page="settings" onclick="switchTab('settings')">
+                <i class="fas fa-cog"></i>
+                <span>设置</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 导入弹窗 -->
+    <div id="import-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>导入账单</h3>
+                <button class="btn-close" onclick="closeModal('import-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">选择账户</label>
+                    <select class="form-select" id="import-account">
+                        <option value="">请选择账户...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">选择模板类型</label>
+                    <select class="form-select" id="import-template" onchange="updateTemplateDesc()">
+                        <option value="">请选择模板...</option>
+                        <option value="wechat">微信支付</option>
+                        <option value="alipay">支付宝</option>
+                    </select>
+                    <p class="form-hint" id="template-desc"></p>
+                </div>
+                <div class="import-options">
+                    <div class="import-option" onclick="selectTemplateAndImport('file')">
+                        <div class="option-icon">
+                            <i class="fas fa-file-excel"></i>
+                        </div>
+                        <span class="option-title">从文件导入</span>
+                        <span class="option-desc">支持 CSV、Excel 格式</span>
+                    </div>
+                    <div class="import-option" onclick="selectTemplateAndImport('paste')">
+                        <div class="option-icon">
+                            <i class="fas fa-paste"></i>
+                        </div>
+                        <span class="option-title">粘贴数据</span>
+                        <span class="option-desc">粘贴 CSV 文本内容</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预览导入弹窗 -->
+    <div id="preview-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>导入预览</h3>
+                <button class="btn-close" onclick="closeModal('preview-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">成功解析</span>
+                        <span class="summary-value success" id="preview-success-count">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">解析失败</span>
+                        <span class="summary-value error" id="preview-error-count">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">跳过行数</span>
+                        <span class="summary-value warning" id="preview-skip-count">0</span>
+                    </div>
+                </div>
+                <div class="preview-table-container">
+                    <table class="preview-table" id="preview-table">
+                        <thead>
+                            <tr>
+                                <th>交易时间</th>
+                                <th>交易对方</th>
+                                <th>金额</th>
+                                <th>类型</th>
+                                <th>分类</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-tbody">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="preview-errors" id="preview-errors">
+                    <!-- 错误信息 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('preview-modal')">取消</button>
+                <button class="btn-primary" onclick="confirmImport()">
+                    <i class="fas fa-check"></i> 确认导入
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 粘贴导入弹窗 -->
+    <div id="paste-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>粘贴 CSV 数据</h3>
+                <button class="btn-close" onclick="closeModal('paste-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">数据格式说明</label>
+                    <p class="form-hint">支持格式：时间,金额,类型,商户,分类,账户</p>
+                </div>
+                <textarea class="paste-area" id="paste-content" placeholder="在此粘贴 CSV 数据...
+示例：
+2024-01-15,35.50,支出,麦当劳,餐饮,支付宝
+2024-01-15,128.00,支出,滴滴出行,交通,微信"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('paste-modal')">取消</button>
+                <button class="btn-primary" onclick="processPastedData()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 处理账单弹窗 -->
+    <div id="process-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>处理账单</h3>
+                <button class="btn-close" onclick="closeModal('process-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="transaction-preview" id="process-preview">
+                    <!-- 动态生成 -->
+                </div>
+                <div class="category-selector">
+                    <h4>选择分类</h4>
+                    <div class="category-grid" id="category-grid">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="create-rule" checked>
+                    <span>为此商户创建自动分类规则</span>
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('process-modal')">取消</button>
+                <button class="btn-primary" onclick="saveTransaction()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 交易详情弹窗 -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>账单详情</h3>
+                <button class="btn-close" onclick="closeModal('detail-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-content" id="detail-content">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-danger" onclick="deleteTransaction()">
+                    <i class="fas fa-trash"></i> 删除
+                </button>
+                <button class="btn-primary" onclick="showEditTransactionModal()">
+                    <i class="fas fa-edit"></i> 编辑
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑/新增交易弹窗 -->
+    <div id="edit-transaction-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="edit-transaction-title">记一笔</h3>
+                <button class="btn-close" onclick="closeModal('edit-transaction-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">金额</label>
+                    <input type="number" class="form-input" id="edit-amount" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">类型</label>
+                    <select class="form-select" id="edit-type" onchange="onTransactionTypeChange()">
+                        <option value="expense">支出</option>
+                        <option value="income">收入</option>
+                        <option value="transfer">转账</option>
+                    </select>
+                </div>
+                <!-- 普通交易账户选择 -->
+                <div class="form-group" id="normal-account-group">
+                    <label class="form-label">账户</label>
+                    <select class="form-select" id="edit-account">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <!-- 转账账户选择 -->
+                <div class="transfer-accounts" id="transfer-account-group" style="display: none;">
+                    <div class="transfer-label">转出账户</div>
+                    <select class="form-select" id="edit-from-account">
+                        <option value="">请选择转出账户...</option>
+                    </select>
+                    <div class="transfer-arrow">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="transfer-label">转入账户</div>
+                    <select class="form-select" id="edit-to-account">
+                        <option value="">请选择转入账户...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">分类</label>
+                    <select class="form-select" id="edit-category">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">商户/对方</label>
+                    <input type="text" class="form-input" id="edit-counterparty" placeholder="输入商户名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">日期时间</label>
+                    <input type="text" class="form-input" id="edit-date" placeholder="YYYY-MM-DD HH:mm:ss">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <input type="text" class="form-input" id="edit-note" placeholder="输入备注（可选）">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('edit-transaction-modal')">取消</button>
+                <button class="btn-primary" onclick="saveEditedTransaction()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 账户管理弹窗 -->
+    <div id="account-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>账户管理</h3>
+                <button class="btn-close" onclick="closeModal('account-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddAccountModal()">
+                        <i class="fas fa-plus"></i> 添加账户
+                    </button>
+                </div>
+                <div class="account-list" id="account-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑账户弹窗 -->
+    <div id="account-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="account-modal-title">添加账户</h3>
+                <button class="btn-close" onclick="closeModal('account-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">账户名称</label>
+                    <input type="text" class="form-input" id="account-name" placeholder="如：支付宝、微信、招商银行">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">账户类型</label>
+                    <select class="form-select" id="account-type">
+                        <option value="alipay">支付宝</option>
+                        <option value="wechat">微信支付</option>
+                        <option value="bank">银行卡</option>
+                        <option value="cash">现金</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">初始余额</label>
+                    <input type="number" class="form-input" id="account-balance" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">图标颜色</label>
+                    <div class="color-picker" id="account-color-picker">
+                        <div class="color-option selected" style="background: #2196F3" data-color="#2196F3"></div>
+                        <div class="color-option" style="background: #4CAF50" data-color="#4CAF50"></div>
+                        <div class="color-option" style="background: #FF9800" data-color="#FF9800"></div>
+                        <div class="color-option" style="background: #E91E63" data-color="#E91E63"></div>
+                        <div class="color-option" style="background: #9C27B0" data-color="#9C27B0"></div>
+                        <div class="color-option" style="background: #607D8B" data-color="#607D8B"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('account-modal')">取消</button>
+                <button class="btn-primary" onclick="saveAccount()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类管理弹窗 -->
+    <div id="category-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>分类管理</h3>
+                <button class="btn-close" onclick="closeModal('category-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="tab-nav">
+                    <button class="tab-btn active" onclick="switchCategoryTab('expense')">支出</button>
+                    <button class="tab-btn" onclick="switchCategoryTab('income')">收入</button>
+                    <button class="tab-btn" onclick="switchCategoryTab('transfer')">转账</button>
+                </div>
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddCategoryModal()">
+                        <i class="fas fa-plus"></i> 添加分类
+                    </button>
+                </div>
+                <div class="category-manage-list" id="category-manage-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑分类弹窗 -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="category-modal-title">添加分类</h3>
+                <button class="btn-close" onclick="closeModal('category-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">分类名称</label>
+                    <input type="text" class="form-input" id="category-name" placeholder="输入分类名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">分类类型</label>
+                    <select class="form-select" id="category-type">
+                        <option value="expense">支出</option>
+                        <option value="income">收入</option>
+                        <option value="transfer">转账</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('category-modal')">取消</button>
+                <button class="btn-primary" onclick="saveCategory()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 规则管理弹窗 -->
+    <div id="rule-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>规则管理</h3>
+                <button class="btn-close" onclick="closeModal('rule-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddRuleModal()">
+                        <i class="fas fa-plus"></i> 添加规则
+                    </button>
+                </div>
+                <div class="rule-list" id="rule-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑规则弹窗 -->
+    <div id="rule-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="rule-modal-title">添加规则</h3>
+                <button class="btn-close" onclick="closeModal('rule-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">规则名称</label>
+                    <input type="text" class="form-input" id="rule-name" placeholder="如：麦当劳自动分类">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">匹配字段</label>
+                    <select class="form-select" id="rule-field">
+                        <option value="counterparty">商户/对方</option>
+                        <option value="categoryRaw">原始分类</option>
+                        <option value="note">备注</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">匹配方式</label>
+                    <select class="form-select" id="rule-match-type">
+                        <option value="contains">包含</option>
+                        <option value="equals">等于</option>
+                        <option value="startsWith">开头是</option>
+                        <option value="endsWith">结尾是</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">关键词</label>
+                    <input type="text" class="form-input" id="rule-keyword" placeholder="输入匹配关键词">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">自动分类到</label>
+                    <select class="form-select" id="rule-category">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">优先级</label>
+                    <input type="number" class="form-input" id="rule-priority" value="0" min="0" max="100">
+                    <p class="form-hint">数字越大优先级越高</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('rule-modal')">取消</button>
+                <button class="btn-primary" onclick="saveRule()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预算设置弹窗 -->
+    <div id="budget-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>预算设置</h3>
+                <button class="btn-close" onclick="closeModal('budget-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <button class="btn-primary btn-block" onclick="showAddBudgetModal()">
+                        <i class="fas fa-plus"></i> 添加预算
+                    </button>
+                </div>
+                <div class="budget-manage-list" id="budget-manage-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑预算弹窗 -->
+    <div id="budget-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="budget-modal-title">添加预算</h3>
+                <button class="btn-close" onclick="closeModal('budget-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">预算类型</label>
+                    <select class="form-select" id="budget-type">
+                        <option value="total">总预算</option>
+                        <option value="category">分类预算</option>
+                    </select>
+                </div>
+                <div class="form-group" id="budget-category-group" style="display: none;">
+                    <label class="form-label">选择分类</label>
+                    <select class="form-select" id="budget-category">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">预算周期</label>
+                    <select class="form-select" id="budget-period">
+                        <option value="month">月度</option>
+                        <option value="year">年度</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">预算金额</label>
+                    <input type="number" class="form-input" id="budget-amount" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('budget-modal')">取消</button>
+                <button class="btn-primary" onclick="saveBudget()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据管理弹窗 -->
+    <div id="data-settings-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>数据管理</h3>
+                <button class="btn-close" onclick="closeModal('data-settings-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="data-stats">
+                    <div class="data-stat-item">
+                        <span class="data-stat-value" id="data-transaction-count">0</span>
+                        <span class="data-stat-label">交易记录</span>
+                    </div>
+                    <div class="data-stat-item">
+                        <span class="data-stat-value" id="data-category-count">0</span>
+                        <span class="data-stat-label">分类</span>
+                    </div>
+                    <div class="data-stat-item">
+                        <span class="data-stat-value" id="data-rule-count">0</span>
+                        <span class="data-stat-label">规则</span>
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <h4>数据导入/导出</h4>
+                    <div class="data-actions">
+                        <button class="btn-secondary btn-block" onclick="exportData()">
+                            <i class="fas fa-download"></i> 导出数据 (JSON)
+                        </button>
+                        <button class="btn-secondary btn-block" onclick="document.getElementById('import-file').click()">
+                            <i class="fas fa-upload"></i> 导入数据 (JSON)
+                        </button>
+                        <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(this)">
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <h4>危险操作</h4>
+                    <button class="btn-danger btn-block" onclick="clearAllData()">
+                        <i class="fas fa-trash-alt"></i> 清空所有数据
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message">操作成功</span>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3 id="confirm-title">确认</h3>
+                <button class="btn-close" onclick="closeModal('confirm-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <p id="confirm-message">确定要执行此操作吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('confirm-modal')">取消</button>
+                <button class="btn-danger" id="confirm-btn" onclick="">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        // ===== V9 转账功能扩展 =====
+        (function() {
+            // 扩展分类类型支持转账
+            const originalGetCategories = window.AppState ? window.AppState.getCategories : null;
+            
+            // 添加默认分类（支出、收入、转账）
+            function addDefaultTransferCategories() {
+                let categories = Storage.get('categories');
+                
+                // 如果没有分类数据，初始化所有默认分类
+                if (!categories || !Array.isArray(categories) || categories.length === 0) {
+                    categories = [
+                        // 支出分类
+                        { id: '1', name: '餐饮', type: 'expense', icon: 'fa-utensils', color: '#FF9800' },
+                        { id: '2', name: '交通', type: 'expense', icon: 'fa-car', color: '#2196F3' },
+                        { id: '3', name: '购物', type: 'expense', icon: 'fa-shopping-bag', color: '#E91E63' },
+                        { id: '4', name: '娱乐', type: 'expense', icon: 'fa-gamepad', color: '#9C27B0' },
+                        { id: '5', name: '居住', type: 'expense', icon: 'fa-home', color: '#795548' },
+                        { id: '6', name: '医疗', type: 'expense', icon: 'fa-hospital', color: '#F44336' },
+                        { id: '7', name: '教育', type: 'expense', icon: 'fa-graduation-cap', color: '#4CAF50' },
+                        // 收入分类
+                        { id: '8', name: '工资', type: 'income', icon: 'fa-money-bill-wave', color: '#4CAF50' },
+                        { id: '9', name: '奖金', type: 'income', icon: 'fa-gift', color: '#F44336' },
+                        { id: '10', name: '投资', type: 'income', icon: 'fa-chart-line', color: '#2196F3' },
+                        // 转账分类
+                        { id: '11', name: '账户互转', type: 'transfer', icon: 'fa-exchange-alt', color: '#9C27B0' }
+                    ];
+                    Storage.set('categories', categories);
+                    console.log('[V9] 已初始化默认分类:', categories.length, '个');
+                } else {
+                    // 如果已有分类，检查是否包含转账分类
+                    const hasTransfer = categories.some(c => c.type === 'transfer');
+                    if (!hasTransfer) {
+                        categories.push(
+                            { id: '11', name: '账户互转', type: 'transfer', icon: 'fa-exchange-alt', color: '#9C27B0' }
+                        );
+                        Storage.set('categories', categories);
+                        console.log('[V9] 已添加转账分类');
+                    }
+                }
+            }
+            
+            // 交易类型改变时的处理
+            window.onTransactionTypeChange = function() {
+                const type = document.getElementById('edit-type').value;
+                const normalGroup = document.getElementById('normal-account-group');
+                const transferGroup = document.getElementById('transfer-account-group');
+                
+                if (type === 'transfer') {
+                    normalGroup.style.display = 'none';
+                    transferGroup.style.display = 'block';
+                    populateTransferAccounts();
+                } else {
+                    normalGroup.style.display = 'block';
+                    transferGroup.style.display = 'none';
+                }
+                
+                // 更新分类选项
+                populateCategorySelect('edit-category', type);
+            };
+            
+            // 填充转账账户选择器
+            function populateTransferAccounts() {
+                const accounts = AppState.getAccounts();
+                const fromSelect = document.getElementById('edit-from-account');
+                const toSelect = document.getElementById('edit-to-account');
+                
+                const options = accounts.map(a => 
+                    `<option value="${a.id}">${a.name}</option>`
+                ).join('');
+                
+                fromSelect.innerHTML = '<option value="">请选择转出账户...</option>' + options;
+                toSelect.innerHTML = '<option value="">请选择转入账户...</option>' + options;
+            }
+            
+            // 填充分类选择器（按类型筛选）
+            function populateCategorySelect(selectId, type) {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+                
+                const categories = AppState.getCategories().filter(c => c.type === type);
+                select.innerHTML = categories.map(c => 
+                    `<option value="${c.id}">${c.name}</option>`
+                ).join('');
+            }
+            
+            // 保存交易（支持转账）
+            const originalSaveEditedTransaction = window.saveEditedTransaction;
+            window.saveEditedTransaction = function() {
+                const type = document.getElementById('edit-type').value;
+                
+                if (type === 'transfer') {
+                    // 转账交易处理
+                    const fromAccountId = document.getElementById('edit-from-account').value;
+                    const toAccountId = document.getElementById('edit-to-account').value;
+                    const amount = parseFloat(document.getElementById('edit-amount').value);
+                    
+                    if (!fromAccountId || !toAccountId) {
+                        showToast('请选择转出和转入账户');
+                        return;
+                    }
+                    if (fromAccountId === toAccountId) {
+                        showToast('转出和转入账户不能相同');
+                        return;
+                    }
+                    if (!amount || amount <= 0) {
+                        showToast('请输入有效金额');
+                        return;
+                    }
+                    
+                    // 检查转出账户余额
+                    const accounts = AppState.getAccounts();
+                    const fromAccount = accounts.find(a => a.id === fromAccountId);
+                    if (fromAccount && fromAccount.balance < amount) {
+                        showToast('转出账户余额不足');
+                        return;
+                    }
+                    
+                    // 创建转账交易记录
+                    const transaction = {
+                        id: AppState.editingTransaction ? AppState.editingTransaction.id : generateId(),
+                        type: 'transfer',
+                        amount: amount,
+                        fromAccountId: fromAccountId,
+                        toAccountId: toAccountId,
+                        accountId: fromAccountId, // 兼容旧代码
+                        categoryId: document.getElementById('edit-category').value,
+                        counterparty: document.getElementById('edit-counterparty').value || '账户转账',
+                        date: new Date(document.getElementById('edit-date').value || new Date()).toISOString(),
+                        note: document.getElementById('edit-note').value,
+                        isTransfer: true
+                    };
+                    
+                    // 更新账户余额
+                    updateAccountBalanceForTransfer(fromAccountId, toAccountId, amount);
+                    
+                    // 保存交易
+                    const transactions = AppState.getTransactions();
+                    const index = transactions.findIndex(t => t.id === transaction.id);
+                    if (index >= 0) {
+                        transactions[index] = transaction;
+                    } else {
+                        transactions.push(transaction);
+                    }
+                    AppState.saveTransactions(transactions);
+                    
+                    closeModal('edit-transaction-modal');
+                    refreshAllData();
+                    showToast('转账记录已保存');
+                } else {
+                    // 普通收入/支出交易
+                    if (originalSaveEditedTransaction) {
+                        originalSaveEditedTransaction();
+                    }
+                }
+            };
+            
+            // 更新账户余额（转账）
+            function updateAccountBalanceForTransfer(fromId, toId, amount) {
+                const accounts = AppState.getAccounts();
+                const fromAccount = accounts.find(a => a.id === fromId);
+                const toAccount = accounts.find(a => a.id === toId);
+                
+                if (fromAccount) {
+                    fromAccount.balance = (fromAccount.balance || 0) - amount;
+                }
+                if (toAccount) {
+                    toAccount.balance = (toAccount.balance || 0) + amount;
+                }
+                
+                AppState.saveAccounts(accounts);
+            }
+            
+            // 显示编辑交易弹窗（扩展支持转账）
+            const originalShowEditTransactionModal = window.showEditTransactionModal;
+            window.showEditTransactionModal = function(transactionId) {
+                const transaction = transactionId ? 
+                    AppState.getTransactions().find(t => t.id === transactionId) : null;
+                
+                AppState.editingTransaction = transaction;
+                
+                document.getElementById('edit-transaction-title').textContent = transaction ? '编辑账单' : '记一笔';
+                
+                if (transaction) {
+                    // 编辑模式
+                    document.getElementById('edit-amount').value = Math.abs(transaction.amount);
+                    document.getElementById('edit-type').value = transaction.type || 'expense';
+                    document.getElementById('edit-counterparty').value = transaction.counterparty || '';
+                    document.getElementById('edit-date').value = formatDateForInput(transaction.date);
+                    document.getElementById('edit-note').value = transaction.note || '';
+                    
+                    onTransactionTypeChange();
+                    
+                    if (transaction.type === 'transfer') {
+                        document.getElementById('edit-from-account').value = transaction.fromAccountId || '';
+                        document.getElementById('edit-to-account').value = transaction.toAccountId || '';
+                    } else {
+                        document.getElementById('edit-account').value = transaction.accountId || '';
+                    }
+                    
+                    setTimeout(() => {
+                        document.getElementById('edit-category').value = transaction.categoryId || '';
+                    }, 0);
+                } else {
+                    // 新增模式
+                    document.getElementById('edit-amount').value = '';
+                    document.getElementById('edit-type').value = 'expense';
+                    document.getElementById('edit-counterparty').value = '';
+                    document.getElementById('edit-date').value = formatDateForInput(new Date());
+                    document.getElementById('edit-note').value = '';
+                    document.getElementById('edit-account').value = '';
+                    document.getElementById('edit-from-account').value = '';
+                    document.getElementById('edit-to-account').value = '';
+                    
+                    onTransactionTypeChange();
+                    populateAccountSelect('edit-account');
+                }
+                
+                document.getElementById('edit-transaction-modal').classList.add('active');
+            };
+            
+            // 格式化日期为输入框格式
+            function formatDateForInput(date) {
+                const d = new Date(date);
+                if (isNaN(d.getTime())) return '';
+                return d.getFullYear() + '-' + 
+                       String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(d.getDate()).padStart(2, '0') + ' ' +
+                       String(d.getHours()).padStart(2, '0') + ':' + 
+                       String(d.getMinutes()).padStart(2, '0') + ':' + 
+                       String(d.getSeconds()).padStart(2, '0');
+            }
+            
+            // 填充账户选择器
+            function populateAccountSelect(selectId) {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+                const accounts = AppState.getAccounts();
+                select.innerHTML = '<option value="">请选择账户...</option>' +
+                    accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            }
+            
+            // 扩展分类标签切换（添加转账标签支持）
+            // 注意：保留app.js中的原始函数，只扩展标签切换逻辑
+            document.addEventListener('DOMContentLoaded', function() {
+                // 等待app.js加载完成
+                setTimeout(() => {
+                    // 保存原始函数
+                    const originalSwitchFn = window.switchCategoryTab;
+                    
+                    // 重写函数以支持转账标签
+                    window.switchCategoryTab = function(tab) {
+                        AppState.currentCategoryTab = tab;
+                        
+                        // 更新标签按钮状态（支持三个标签）
+                        document.querySelectorAll('#category-settings-modal .tab-btn').forEach(btn => {
+                            btn.classList.remove('active');
+                            const btnText = btn.textContent;
+                            if ((tab === 'expense' && btnText.includes('支出')) ||
+                                (tab === 'income' && btnText.includes('收入')) ||
+                                (tab === 'transfer' && btnText.includes('转账'))) {
+                                btn.classList.add('active');
+                            }
+                        });
+                        
+                        // 调用原始渲染函数
+                        if (typeof renderCategoryManageList === 'function') {
+                            renderCategoryManageList();
+                        }
+                    };
+                    
+                    console.log('[V9] 分类标签切换功能已扩展');
+                }, 100);
+            });
+            
+            // 初始化
+            document.addEventListener('DOMContentLoaded', function() {
+                // 首先初始化默认分类
+                addDefaultTransferCategories();
+                
+                // 等待 app.js 加载完成
+                setTimeout(() => {
+                    // 保存原始函数
+                    const originalSwitchFn = window.switchCategoryTab;
+                    
+                    // 重写函数以支持转账标签
+                    window.switchCategoryTab = function(tab) {
+                        AppState.currentCategoryTab = tab;
+                        
+                        // 更新标签按钮状态（支持三个标签）
+                        document.querySelectorAll('#category-settings-modal .tab-btn').forEach(btn => {
+                            btn.classList.remove('active');
+                            const btnText = btn.textContent;
+                            if ((tab === 'expense' && btnText.includes('支出')) ||
+                                (tab === 'income' && btnText.includes('收入')) ||
+                                (tab === 'transfer' && btnText.includes('转账'))) {
+                                btn.classList.add('active');
+                            }
+                        });
+                        
+                        // 调用原始渲染函数
+                        if (typeof renderCategoryManageList === 'function') {
+                            renderCategoryManageList();
+                        }
+                    };
+                    
+                    console.log('[V9] 分类标签切换功能已扩展');
+                    
+                    // 确保页面加载时就初始化分类
+                    if (typeof ensureDefaultCategories === 'function') {
+                        ensureDefaultCategories();
+                        console.log('[V9] 已确保默认分类已初始化');
+                    }
+                }, 100);
+                
+                // 添加新增记账按钮到首页
+                setTimeout(() => {
+                    const homeHeader = document.querySelector('.home-header');
+                    if (homeHeader && !document.getElementById('btn-add-transaction')) {
+                        const addBtn = document.createElement('button');
+                        addBtn.id = 'btn-add-transaction';
+                        addBtn.className = 'btn-import';
+                        addBtn.style.marginLeft = '8px';
+                        addBtn.innerHTML = '<i class="fas fa-plus"></i> 记一笔';
+                        addBtn.onclick = () => showEditTransactionModal();
+                        homeHeader.appendChild(addBtn);
+                    }
+                }, 500);
+            });
+        })();
+    </script>
+</body>
+</html>

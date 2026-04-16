@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>费用分析最终验证</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, monospace; padding: 20px; background: #0d1117; color: #c9d1d9; max-width: 960px; margin: 0 auto; }
+h2 { color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+pre { background: #161b22; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; border: 1px solid #30363d; }
+.ok { color: #3fb950; } .err { color: #f85149; } .warn { color: #d29922; }
+.btn { padding: 10px 20px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 5px; font-size: 14px; }
+.btn:hover { background: #2ea043; }
+.btn-blue { background: #1f6feb; }
+.btn-blue:hover { background: #388bfd; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #30363d; font-size: 13px; }
+th { color: #58a6ff; background: #161b22; }
+</style>
+</head>
+<body>
+<h2>费用分析 - 最终验证</h2>
+<div>
+<button class="btn" onclick="runFullCheck()">完整检查</button>
+<button class="btn btn-blue" onclick="openMain()">打开主页面</button>
+<button class="btn btn-blue" onclick="openRenderTest()">打开渲染测试</button>
+</div>
+<div id="out"></div>
+
+<script>
+var out = document.getElementById('out');
+function L(msg, cls) { out.innerHTML += '<pre class="' + (cls||'') + '">' + msg + '</pre>'; }
+
+function runFullCheck() {
+    out.innerHTML = '';
+    L('===== 费用分析完整检查 =====');
+
+    // 1. localStorage 检查
+    var txRaw = localStorage.getItem('transactions');
+    var catRaw = localStorage.getItem('categories');
+
+    if (!txRaw) { L('✗ 没有交易数据，请先导入账单', 'err'); return; }
+    L('✓ 交易数据存在 (' + (txRaw.length / 1024).toFixed(1) + 'KB)', 'ok');
+
+    var tx = JSON.parse(txRaw);
+    L('  交易总数: ' + tx.length, 'ok');
+
+    if (!catRaw) { L('✗ 没有分类数据', 'err'); return; }
+    var cats = JSON.parse(catRaw);
+    L('✓ 分类数据存在 (' + cats.length + '个分类)', 'ok');
+
+    // 2. 构建分类映射
+    var catMap = {};
+    for (var c = 0; c < cats.length; c++) {
+        catMap[cats[c].id] = cats[c];
+    }
+
+    // 3. 月份分布
+    var months = {};
+    for (var i = 0; i < tx.length; i++) {
+        var d = new Date(tx[i].date);
+        if (!isNaN(d.getTime())) {
+            var key = d.getFullYear() + '-' + (d.getMonth()+1);
+            if (!months[key]) months[key] = {exp: 0, inc: 0, tf: 0};
+            if (tx[i].type === 'expense') months[key].exp++;
+            else if (tx[i].type === 'income') months[key].inc++;
+            else if (tx[i].type === 'transfer') months[key].tf++;
+        }
+    }
+    L('--- 月份分布 ---');
+    var mKeys = Object.keys(months).sort();
+    var hasData = false;
+    for (var m = 0; m < mKeys.length; m++) {
+        var mk = mKeys[m], mv = months[mk];
+        L('  ' + mk + '月: 支出' + mv.exp + '笔 收入' + mv.inc + '笔 转账' + mv.tf + '笔');
+        if (mv.exp > 0 || mv.inc > 0) hasData = true;
+    }
+
+    // 4. 3月支出详细汇总
+    L('--- 2026年3月 支出汇总 ---');
+    var expMap = {}, expTotal = 0, expCount = 0;
+    for (var i = 0; i < tx.length; i++) {
+        var t = tx[i];
+        var dd = new Date(t.date);
+        if (t.type === 'expense' && dd.getFullYear() === 2026 && dd.getMonth() === 2) {
+            var name = catMap[t.categoryId] ? catMap[t.categoryId].name : '未分类(id=' + t.categoryId + ')';
+            var amt = Math.abs(t.amount);
+            expTotal += amt;
+            expCount++;
+            expMap[name] = (expMap[name] || 0) + amt;
+        }
+    }
+    L('  共 ' + expCount + ' 笔, 总计 ¥' + expTotal.toFixed(2), expCount > 0 ? 'ok' : 'err');
+    var expEntries = [];
+    for (var nm in expMap) expEntries.push({name: nm, amount: expMap[nm]});
+    expEntries.sort(function(a,b){return b.amount-a.amount;});
+    for (var e = 0; e < expEntries.length; e++) {
+        var pct = expTotal > 0 ? (expEntries[e].amount / expTotal * 100).toFixed(1) : '0.0';
+        L('    ' + expEntries[e].name + ': ¥' + expEntries[e].amount.toFixed(2) + ' (' + pct + '%)');
+    }
+
+    // 5. 3月收入详细汇总
+    L('--- 2026年3月 收入汇总 ---');
+    var incMap = {}, incTotal = 0, incCount = 0;
+    for (var i = 0; i < tx.length; i++) {
+        var t = tx[i];
+        var dd = new Date(t.date);
+        if (t.type === 'income' && dd.getFullYear() === 2026 && dd.getMonth() === 2) {
+            var name = catMap[t.categoryId] ? catMap[t.categoryId].name : '未分类(id=' + t.categoryId + ')';
+            var amt = Math.abs(t.amount);
+            incTotal += amt;
+            incCount++;
+            incMap[name] = (incMap[name] || 0) + amt;
+        }
+    }
+    L('  共 ' + incCount + ' 笔, 总计 ¥' + incTotal.toFixed(2), incCount > 0 ? 'ok' : 'warn');
+    var incEntries = [];
+    for (var nm in incMap) incEntries.push({name: nm, amount: incMap[nm]});
+    incEntries.sort(function(a,b){return b.amount-a.amount;});
+    for (var e = 0; e < incEntries.length; e++) {
+        var pct = incTotal > 0 ? (incEntries[e].amount / incTotal * 100).toFixed(1) : '0.0';
+        L('    ' + incEntries[e].name + ': ¥' + incEntries[e].amount.toFixed(2) + ' (' + pct + '%)');
+    }
+
+    // 6. 结论
+    L('===== 检查结论 =====');
+    if (expCount > 0 || incCount > 0) {
+        L('✓ 3月账单数据完整，费用分析应该能正常显示', 'ok');
+        L('如果主页面仍显示"暂无数据"，请:');
+        L('  1. 按 Ctrl+Shift+R 强制刷新页面（清除缓存）');
+        L('  2. 按 F12 打开控制台查看是否有 JavaScript 错误');
+        L('  3. 在控制台输入: console.log(window._expenseAnalysisDebug)');
+    } else {
+        L('✗ 3月没有支出/收入交易记录', 'err');
+        L('  请检查账单的日期是否为 2026年3月');
+    }
+}
+
+function openMain() { window.open('自动记账V8优化版.html', '_blank'); }
+function openRenderTest() { window.open('render-test.html', '_blank'); }
+
+// 自动运行
+setTimeout(runFullCheck, 500);
+</script>
+</body>
+</html>
