@@ -1,0 +1,24 @@
+{
+  "name": "自动记账",
+  "short_name": "记账",
+  "description": "智能财务管理 - 自动记账V10",
+  "start_url": "./自动记账.html",
+  "display": "standalone",
+  "background_color": "#FAF8FF",
+  "theme_color": "#9C88F0",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
