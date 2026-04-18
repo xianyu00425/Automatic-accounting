@@ -4193,7 +4193,7 @@ body {
     </div>
 
     <script>
-﻿﻿// 自动记账 V3 增强版 - JavaScript
+﻿﻿// 自动记账 V3 增强版 - JavaScript (v10.1 - 费用分析修复)
 // 新增功能：
 // 1. 主界面汇总自动更新（当月收入/支出/结余）
 // 2. 主界面显示总账户余额
@@ -4588,7 +4588,7 @@ function renderHome() {
     }
 }
 
-// 渲染预算 - 根据首页当前选择月份计算
+// 渲染预算 - 根据首页当前选择月份/日期范围计算
 function renderBudgets() {
     const budgets = AppState.getBudgets();
     const transactions = AppState.getTransactions();
@@ -4600,12 +4600,15 @@ function renderBudgets() {
         return;
     }
 
-    // 使用首页选择的月份（AppState.currentMonth）而非系统当前时间
+    // 优先使用日期范围筛选，否则使用月份
+    const useDateFilter = AppState.homeDateFilter && AppState.homeDateFilter.start;
     const targetMonth = AppState.currentMonth;
 
     container.innerHTML = budgets.map(budget => {
         const category = AppState.getCategory(budget.categoryId);
-        const spend = calculateBudgetSpend(budget, transactions, targetMonth);
+        const spend = useDateFilter
+            ? calculateBudgetSpendByFilter(budget, transactions, AppState.homeDateFilter)
+            : calculateBudgetSpend(budget, transactions, targetMonth);
         const progress = budget.amount > 0 ? (spend / budget.amount) : 0;
         const progressClass = progress > 0.9 ? 'high' : progress > 0.7 ? 'medium' : 'low';
 
@@ -4613,7 +4616,7 @@ function renderBudgets() {
             <div class="budget-item">
                 <div class="budget-header">
                     <span class="budget-name">${category ? category.name : '总预算'}</span>
-                    <span class="budget-amount">￥${spend.toFixed(2)} / ￥${budget.amount.toFixed(2)}</span>
+                    <span class="budget-amount">¥${spend.toFixed(2)} / ¥${budget.amount.toFixed(2)}</span>
                 </div>
                 <div class="budget-progress">
                     <div class="budget-bar ${progressClass}" style="width: ${Math.min(progress * 100, 100)}%"></div>
@@ -4621,6 +4624,27 @@ function renderBudgets() {
             </div>
         `;
     }).join('');
+}
+
+// 计算预算花费 - 基于日期范围筛选，仅统计已分类的支出账单
+function calculateBudgetSpendByFilter(budget, transactions, dateFilter) {
+    const startDate = dateFilter.start;
+    const endDate = dateFilter.end;
+
+    return transactions
+        .filter(t => {
+            // 仅统计支出类型
+            if (t.type !== 'expense') return false;
+            // 仅统计已分类的账单
+            if (!t.categoryId) return false;
+            // 分类预算：只统计匹配分类的支出
+            if (budget.categoryId && t.categoryId !== budget.categoryId) return false;
+            // 日期范围过滤
+            const d = new Date(t.date);
+            const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+            return dateStr >= startDate && dateStr <= endDate;
+        })
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 }
 
 // 计算预算花费 - 基于指定月份（而非系统当前时间），仅统计已分类的支出账单
