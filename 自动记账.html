@@ -5558,8 +5558,15 @@ function formatDate(dateStr) {
 function rawDateValue(rawValue, fallbackDate) {
     if (rawValue === null || rawValue === undefined) return fallbackDate ? formatDate(fallbackDate) : '';
     var s = String(rawValue).trim();
+    // 原始值本身就是标准日期字符串
     if (s.match(/^\d{4}[-\/]/)) return s;
-    if (!isNaN(Number(s)) && Number(s) > 10000) return fallbackDate ? formatDate(fallbackDate) : s;
+    // Excel 日期序列号（数字或数字字符串）：直接转为本地日期字符串，避免经过 Date 对象的 UTC 转换
+    if (!isNaN(Number(s)) && Number(s) > 10000) {
+        var excelEpoch = new Date(1899, 11, 30);
+        var d = new Date(excelEpoch.getTime() + Number(s) * 24 * 60 * 60 * 1000);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' +
+               String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+    }
     return s;
 }
 
@@ -6308,10 +6315,8 @@ function renderTransactionItem(t) {
         amountText = '¥' + Math.abs(t.amount).toFixed(2);
     }
 
-    // 格式化时间
-    var dateStr = t.date || '';
-    var timeStr = (t.time || '00:00').substring(0, 5);
-    var timeDisplay = dateStr + ' ' + timeStr;
+    // 格式化时间：优先使用原始导入的交易时间，与账单详情保持一致
+    var timeDisplay = t.dateRaw || formatDate(t.date);
 
     // 分类图标+名称（放大显示）
     var catIcon = category
@@ -7296,7 +7301,7 @@ function parseCSVRowPreview(values, headers, accountId, fileType) {
 function parseWechatDate(dateValue) {
     if (!dateValue) return null;
     if (typeof dateValue === 'number') {
-        var excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        var excelEpoch = new Date(1899, 11, 30);
         return new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
     }
     var str = String(dateValue).trim();
@@ -7310,7 +7315,7 @@ function parseWechatDate(dateValue) {
 function parseAlipayDate(dateValue) {
     if (!dateValue) return null;
     if (typeof dateValue === 'number') {
-        var excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        var excelEpoch = new Date(1899, 11, 30);
         return new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
     }
     var str = String(dateValue).trim();
@@ -7364,6 +7369,11 @@ function showPreviewModal() {
 function autoClassifyTransactions(transactions) {
     var rules = AppState.getRules();
     var history = AppState.getClassificationHistory();
+    var categories = AppState.getCategories();
+    var validCategoryIds = {};
+    for (var ci = 0; ci < categories.length; ci++) {
+        validCategoryIds[categories[ci].id] = true;
+    }
 
     // 规则按优先级排序（高的在前）
     rules.sort(function(a, b) { return (b.priority || 0) - (a.priority || 0); });
@@ -7374,15 +7384,17 @@ function autoClassifyTransactions(transactions) {
         // 只处理未分类的交易
         if (t.categoryId) continue;
 
-        // 1. 先检查历史记录（精确匹配商户+类型）
-        var historyMatch = history.find(function(h) {
-            return h.counterparty === t.counterparty && h.type === t.type;
-        });
-        if (historyMatch) {
-            t.categoryId = historyMatch.categoryId;
-            t.isMatched = true;
-            processed++;
-            continue;
+        // 1. 先检查历史记录（精确匹配商户+类型），仅在规则存在时启用
+        if (rules.length > 0) {
+            var historyMatch = history.find(function(h) {
+                return h.counterparty === t.counterparty && h.type === t.type && validCategoryIds[h.categoryId];
+            });
+            if (historyMatch) {
+                t.categoryId = historyMatch.categoryId;
+                t.isMatched = true;
+                processed++;
+                continue;
+            }
         }
 
         // 2. 按优先级检查规则
@@ -7403,10 +7415,10 @@ function autoClassifyTransactions(transactions) {
             }
         }
 
-        // 3. 如果规则未匹配，尝试历史记录的模糊匹配（商户包含关系）
-        if (!t.categoryId) {
+        // 3. 如果规则未匹配，尝试历史记录的模糊匹配（商户包含关系），仅在规则存在时启用
+        if (!t.categoryId && rules.length > 0) {
             var fuzzyMatch = history.find(function(h) {
-                return h.type === t.type && (t.counterparty.includes(h.counterparty) || h.counterparty.includes(t.counterparty));
+                return h.type === t.type && validCategoryIds[h.categoryId] && (t.counterparty.includes(h.counterparty) || h.counterparty.includes(t.counterparty));
             });
             if (fuzzyMatch) {
                 t.categoryId = fuzzyMatch.categoryId;
