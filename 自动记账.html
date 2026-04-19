@@ -4437,7 +4437,7 @@ body {
                         </div>
                         <div class="account-stat-item">
                             <span class="stat-label">账户结余</span>
-                            <span class="stat-amount" id="account-balance">¥0.00</span>
+                            <span class="stat-amount" id="account-stat-balance">¥0.00</span>
                         </div>
                         <div class="account-stat-item">
                             <span class="stat-label">交易笔数</span>
@@ -5031,8 +5031,9 @@ body {
                 <div class="form-group">
                     <label class="form-label">账户分类</label>
                     <select class="form-select" id="account-category" onchange="toggleAccountCategoryFields()">
-                        <option value="personal">自有账户</option>
-                        <option value="credit">先用后还</option>
+                        <option value="personal">自有钱包</option>
+                        <option value="payable">应付欠款（负债）</option>
+                        <option value="receivable">应收欠款（资产）</option>
                     </select>
                     <p class="form-hint" id="account-category-hint">实际持有、可自由支配的余额</p>
                 </div>
@@ -5057,16 +5058,28 @@ body {
                     <label class="form-label">初始余额</label>
                     <input type="number" class="form-input" id="account-balance" step="0.01" placeholder="0.00">
                 </div>
-                <!-- 先用后还账户字段 -->
-                <div id="credit-fields" style="display:none;">
+                <!-- 应付欠款字段 -->
+                <div id="payable-fields" style="display:none;">
                     <div class="form-group">
-                        <label class="form-label">总额度</label>
+                        <label class="form-label">债权人（收款方/平台）</label>
+                        <input type="text" class="form-input" id="account-creditor-name" placeholder="如：花呗、张三">
+                        <p class="form-hint">必须绑定债权人</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">总额度（可选）</label>
                         <input type="number" class="form-input" id="account-total-limit" step="0.01" placeholder="如：10000.00">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">还款日（每月几号）</label>
+                        <label class="form-label">还款日（每月几号，可选）</label>
                         <input type="number" class="form-input" id="account-repayment-day" min="1" max="31" step="1" placeholder="如：10">
-                        <p class="form-hint">每月该日需还款，支持后续修改</p>
+                    </div>
+                </div>
+                <!-- 应收欠款字段 -->
+                <div id="receivable-fields" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">债务人（欠款人）</label>
+                        <input type="text" class="form-input" id="account-debtor-name" placeholder="如：李四">
+                        <p class="form-hint">必须绑定债务人</p>
                     </div>
                 </div>
                 <div class="form-group">
@@ -5116,6 +5129,130 @@ body {
                 <button class="btn-primary" onclick="executeRepayment()">
                     <i class="fas fa-check"></i> 确认还款
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 借入弹窗 -->
+    <div id="borrow-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>借入资金</h3>
+                <button class="btn-close" onclick="closeModal('borrow-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="borrow-info" style="margin-bottom:16px;"></div>
+                <div class="form-group">
+                    <label class="form-label">借入金额</label>
+                    <input type="number" class="form-input" id="borrow-amount" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">借入至（自有钱包）</label>
+                    <select class="form-select" id="borrow-to-wallet"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <input type="text" class="form-input" id="borrow-note" placeholder="可选">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('borrow-modal')">取消</button>
+                <button class="btn-primary" onclick="executeBorrow()">确认借入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 偿还应付弹窗 -->
+    <div id="repay-payable-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>偿还欠款</h3>
+                <button class="btn-close" onclick="closeModal('repay-payable-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="repay-payable-info" style="margin-bottom:16px;"></div>
+                <div class="form-group">
+                    <label class="form-label">偿还金额</label>
+                    <input type="number" class="form-input" id="repay-payable-amount" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">从哪个钱包偿还</label>
+                    <select class="form-select" id="repay-payable-from"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <input type="text" class="form-input" id="repay-payable-note" placeholder="可选">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('repay-payable-modal')">取消</button>
+                <button class="btn-primary" onclick="executeRepayPayable()">确认偿还</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 借出弹窗 -->
+    <div id="lend-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>借出资金</h3>
+                <button class="btn-close" onclick="closeModal('lend-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="lend-info" style="margin-bottom:16px;"></div>
+                <div class="form-group">
+                    <label class="form-label">借出金额</label>
+                    <input type="number" class="form-input" id="lend-amount" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">从哪个钱包借出</label>
+                    <select class="form-select" id="lend-from-wallet"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <input type="text" class="form-input" id="lend-note" placeholder="可选">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('lend-modal')">取消</button>
+                <button class="btn-primary" onclick="executeLend()">确认借出</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收回应收弹窗 -->
+    <div id="collect-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>收回欠款</h3>
+                <button class="btn-close" onclick="closeModal('collect-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="collect-info" style="margin-bottom:16px;"></div>
+                <div class="form-group">
+                    <label class="form-label">收回金额</label>
+                    <input type="number" class="form-input" id="collect-amount" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">收回至（钱包）</label>
+                    <select class="form-select" id="collect-to-wallet"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <input type="text" class="form-input" id="collect-note" placeholder="可选">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('collect-modal')">取消</button>
+                <button class="btn-primary" onclick="executeCollect()">确认收回</button>
             </div>
         </div>
     </div>
@@ -5606,6 +5743,25 @@ function migrateOldData() {
     return true;
 }
 
+// 迁移旧的 credit 分类账户为 payable 分类
+function migrateCreditToPayable() {
+    var accounts = AppState.getAccounts();
+    var needMigrate = accounts.some(function(a) { return a.accountCategory === 'credit'; });
+    if (!needMigrate) return;
+
+    console.log('[数据迁移] 检测到旧的 credit 分类账户，迁移为 payable...');
+    accounts.forEach(function(a) {
+        if (a.accountCategory === 'credit') {
+            a.accountCategory = 'payable';
+            if (!a.creditorName) {
+                a.creditorName = a.name; // 用账户名作为默认债权人
+            }
+        }
+    });
+    AppState.saveAccounts(accounts);
+    console.log('[数据迁移] credit → payable 迁移完成');
+}
+
 // 应用状态管理
 const AppState = {
     currentMonth: new Date(2026, 2, 1), // 初始化为2026年3月
@@ -5747,15 +5903,22 @@ const AppState = {
         };
     },
 
-    // 【新增功能 2】计算总账户余额
+    // 【新增功能 2】计算总账户余额：自有钱包 + 应收欠款 - 应付欠款
     getTotalBalance() {
         const accounts = this.getAccounts();
         return accounts.reduce((sum, account) => {
-            if (account.accountCategory === 'credit') {
-                // 信用账户：已用额度（欠款）从总余额中扣除，总额度不计入
+            if (account.accountCategory === 'personal') {
+                return sum + (account.balance || 0);
+            } else if (account.accountCategory === 'receivable') {
+                return sum + (account.outstandingDebt || 0);
+            } else if (account.accountCategory === 'payable') {
                 return sum - (account.outstandingDebt || 0);
             }
-            return sum + (account.balance || 0);
+            // 兼容旧的 credit 分类
+            if (account.accountCategory === 'credit') {
+                return sum - (account.outstandingDebt || 0);
+            }
+            return sum;
         }, 0);
     },
 
@@ -6040,15 +6203,16 @@ function renderHome() {
 // 显示账户余额详情
 function showBalanceDetail() {
     const accounts = AppState.getAccounts();
-    var personalAccounts = accounts.filter(function(a) { return a.accountCategory !== 'credit'; });
-    var creditAccounts = accounts.filter(function(a) { return a.accountCategory === 'credit'; });
+    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var payableAccounts = accounts.filter(function(a) { return a.accountCategory === 'payable' || a.accountCategory === 'credit'; });
+    var receivableAccounts = accounts.filter(function(a) { return a.accountCategory === 'receivable'; });
 
     var html = '';
 
-    // 自有账户
+    // 自有钱包
     if (personalAccounts.length > 0) {
         html += '<div style="margin-bottom:16px;">';
-        html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-wallet" style="margin-right:6px;color:#4CAF50;"></i>自有账户</div>';
+        html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-wallet" style="margin-right:6px;color:#4CAF50;"></i>自有钱包</div>';
         personalAccounts.forEach(function(a) {
             html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
             html += '<div style="display:flex;align-items:center;gap:8px;">';
@@ -6065,35 +6229,55 @@ function showBalanceDetail() {
         html += '</div>';
     }
 
-    // 先用后还账户
-    if (creditAccounts.length > 0) {
+    // 应付欠款
+    if (payableAccounts.length > 0) {
         html += '<div style="margin-bottom:16px;">';
-        html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-credit-card" style="margin-right:6px;color:#FF9800;"></i>先用后还</div>';
-        creditAccounts.forEach(function(a) {
-            var totalLimit = a.totalLimit || 0;
+        html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-file-invoice-dollar" style="margin-right:6px;color:#E53935;"></i>应付欠款</div>';
+        payableAccounts.forEach(function(a) {
             var debt = a.outstandingDebt || 0;
-            var available = totalLimit - debt;
+            var creditor = a.creditorName || '';
+            var limitInfo = a.totalLimit ? ' | 额度 ¥' + a.totalLimit.toFixed(2) : '';
             html += '<div style="padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
             html += '<div style="display:flex;align-items:center;gap:8px;">';
-            html += '<div style="width:32px;height:32px;border-radius:8px;background:' + a.color + ';display:flex;align-items:center;justify-content:center;color:white;font-size:14px;"><i class="fas ' + (a.icon || 'fa-credit-card') + '"></i></div>';
+            html += '<div style="width:32px;height:32px;border-radius:8px;background:' + a.color + ';display:flex;align-items:center;justify-content:center;color:white;font-size:14px;"><i class="fas ' + (a.icon || 'fa-file-invoice-dollar') + '"></i></div>';
             html += '<span style="font-size:14px;color:var(--text-primary);">' + a.name + '</span>';
             html += '</div>';
+            html += '<span style="font-size:15px;font-weight:600;color:#E53935;">¥' + debt.toFixed(2) + '</span>';
             html += '</div>';
-            html += '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--text-secondary);">';
-            html += '<span>总额度</span><span>¥' + totalLimit.toFixed(2) + '</span>';
-            html += '</div>';
-            html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-top:4px;">';
-            html += '<span>已使用</span><span style="color:#E53935;font-weight:600;">¥' + debt.toFixed(2) + '</span>';
-            html += '</div>';
-            html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-top:4px;">';
-            html += '<span>剩余可用</span><span style="color:#4CAF50;font-weight:600;">¥' + available.toFixed(2) + '</span>';
-            html += '</div>';
+            if (creditor) {
+                html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;margin-left:44px;">债权人：' + creditor + limitInfo + '</div>';
+            }
             html += '</div>';
         });
-        var creditDebtTotal = creditAccounts.reduce(function(s, a) { return s + (a.outstandingDebt || 0); }, 0);
+        var payableTotal = payableAccounts.reduce(function(s, a) { return s + (a.outstandingDebt || 0); }, 0);
         html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;color:var(--text-secondary);border-top:1px dashed var(--border-color);margin-top:8px;">';
-        html += '<span>已用欠款合计</span><span style="color:#E53935;">-¥' + creditDebtTotal.toFixed(2) + '</span>';
+        html += '<span>欠款合计</span><span style="color:#E53935;">-¥' + payableTotal.toFixed(2) + '</span>';
+        html += '</div>';
+        html += '</div>';
+    }
+
+    // 应收欠款
+    if (receivableAccounts.length > 0) {
+        html += '<div style="margin-bottom:16px;">';
+        html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-hand-holding-usd" style="margin-right:6px;color:#FF9800;"></i>应收欠款</div>';
+        receivableAccounts.forEach(function(a) {
+            var receivable = a.outstandingDebt || 0;
+            var debtor = a.debtorName || '';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;">';
+            html += '<div style="width:32px;height:32px;border-radius:8px;background:' + a.color + ';display:flex;align-items:center;justify-content:center;color:white;font-size:14px;"><i class="fas ' + (a.icon || 'fa-hand-holding-usd') + '"></i></div>';
+            html += '<span style="font-size:14px;color:var(--text-primary);">' + a.name + '</span>';
+            html += '</div>';
+            html += '<span style="font-size:15px;font-weight:600;color:#FF9800;">¥' + receivable.toFixed(2) + '</span>';
+            html += '</div>';
+            if (debtor) {
+                html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;margin-left:44px;">债务人：' + debtor + '</div>';
+            }
+        });
+        var receivableTotal = receivableAccounts.reduce(function(s, a) { return s + (a.outstandingDebt || 0); }, 0);
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;color:var(--text-secondary);border-top:1px dashed var(--border-color);margin-top:8px;">';
+        html += '<span>应收合计</span><span style="color:#FF9800;">+¥' + receivableTotal.toFixed(2) + '</span>';
         html += '</div>';
         html += '</div>';
     }
@@ -6105,7 +6289,7 @@ function showBalanceDetail() {
     html += '<span style="font-size:18px;font-weight:700;color:var(--primary-color);">¥' + totalBalance.toFixed(2) + '</span>';
     html += '</div>';
 
-    if (personalAccounts.length === 0 && creditAccounts.length === 0) {
+    if (personalAccounts.length === 0 && payableAccounts.length === 0 && receivableAccounts.length === 0) {
         html = '<div style="text-align:center;padding:40px 20px;color:var(--text-secondary);"><i class="fas fa-wallet" style="font-size:40px;margin-bottom:12px;display:block;opacity:0.3;"></i><p>暂无账户数据</p></div>';
     }
 
@@ -6451,7 +6635,7 @@ function showAccountSummary(accountId) {
 
     el('account-income').textContent = formatAmount(stats.income || 0, 'income');
     el('account-expense').textContent = formatAmount(stats.expense || 0, 'expense');
-    el('account-balance').textContent = '￥' + (stats.balance || 0).toFixed(2);
+    el('account-stat-balance').textContent = '￥' + (stats.balance || 0).toFixed(2);
     el('account-count').textContent = stats.count || 0;
 }
 
@@ -6488,7 +6672,7 @@ function showAccountSummaryFiltered(filteredTransactions, accountId) {
     el('account-expense').textContent = formatAmount(expense, 'expense');
     el('account-transfer-in').textContent = '+¥' + transferIn.toFixed(2);
     el('account-transfer-out').textContent = '-¥' + transferOut.toFixed(2);
-    el('account-balance').textContent = '¥' + balance.toFixed(2);
+    el('account-stat-balance').textContent = '¥' + balance.toFixed(2);
     el('account-count').textContent = count;
 }
 
@@ -7584,8 +7768,10 @@ function recalculateAllAccountBalances() {
     console.log('[余额重算] 交易总数:', transactions.length, '账户数:', accounts.length);
 
     accounts.forEach(function(account) {
-        if (account.accountCategory === 'credit') {
-            // 信用账户：重算欠款
+        console.log('[余额重算] 处理账户:', account.name, 'id:', account.id, 'category:', account.accountCategory, 'initialBalance:', account.initialBalance, '当前balance:', account.balance);
+
+        if (account.accountCategory === 'payable' || account.accountCategory === 'credit') {
+            // 应付欠款：从交易计算欠款总额
             var debt = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === account.id) {
@@ -7593,39 +7779,50 @@ function recalculateAllAccountBalances() {
                     if (t.type === 'expense') debt += amt;
                     else if (t.type === 'income') debt = Math.max(0, debt - amt);
                 }
-                // 转账：转入信用账户 = 还款（减少欠款）
                 if (t.type === 'transfer' && t.toAccountId === account.id) {
                     debt = Math.max(0, debt - (Math.abs(parseFloat(t.amount)) || 0));
                 }
             });
             account.outstandingDebt = debt;
-            console.log('[信用账户] ' + account.name + ': 欠款 ￥' + debt.toFixed(2));
+            console.log('[应付欠款] ' + account.name + ': 欠款 ￥' + debt.toFixed(2));
+        } else if (account.accountCategory === 'receivable') {
+            // 应收欠款：从交易计算应收总额
+            var receivable = 0;
+            transactions.forEach(function(t) {
+                if (t.accountId === account.id) {
+                    var amt = Math.abs(parseFloat(t.amount)) || 0;
+                    if (t.type === 'expense') receivable += amt;
+                    else if (t.type === 'income') receivable = Math.max(0, receivable - amt);
+                }
+            });
+            account.outstandingDebt = receivable;
+            console.log('[应收欠款] ' + account.name + ': 应收 ￥' + receivable.toFixed(2));
         } else {
-            // 自有账户：正常余额计算
-            var balance = 0;
-            var txCount = 0;
+            // 自有钱包：余额 = 初始余额 + 收入 - 支出 + 转入 - 转出
+            // 兼容迁移：如果账户没有 initialBalance 字段，将当前 balance 作为初始余额
+            if (account.initialBalance === undefined || account.initialBalance === null) {
+                account.initialBalance = (account.balance || 0);
+            }
+            var initialBalance = account.initialBalance || 0;
+            var income = 0;
+            var expense = 0;
+            var transfersIn = 0;
+            var transfersOut = 0;
 
             transactions.forEach(function(t) {
                 var amt = Math.abs(parseFloat(t.amount)) || 0;
 
                 if (t.type === 'transfer') {
-                    if (t.fromAccountId === account.id) {
-                        balance -= amt;
-                        txCount++;
-                    }
-                    if (t.toAccountId === account.id) {
-                        balance += amt;
-                        txCount++;
-                    }
+                    if (t.fromAccountId === account.id) transfersOut += amt;
+                    if (t.toAccountId === account.id) transfersIn += amt;
                 } else if (t.accountId === account.id) {
-                    txCount++;
-                    if (t.type === 'income') { balance += amt; }
-                    else if (t.type === 'expense') { balance -= amt; }
+                    if (t.type === 'income') income += amt;
+                    else if (t.type === 'expense') expense += amt;
                 }
             });
 
-            account.balance = balance;
-            console.log('[余额] ' + account.name + '(' + account.id + '): ' + txCount + '笔 → ￥' + balance.toFixed(2));
+            account.balance = initialBalance + income - expense + transfersIn - transfersOut;
+            console.log('[自有钱包] ' + account.name + ': 初始 ￥' + initialBalance.toFixed(2) + ' + 收入 ￥' + income.toFixed(2) + ' - 支出 ￥' + expense.toFixed(2) + ' + 转入 ￥' + transfersIn.toFixed(2) + ' - 转出 ￥' + transfersOut.toFixed(2) + ' = ￥' + account.balance.toFixed(2));
         }
     });
 
@@ -7640,6 +7837,38 @@ function refreshAllData() {
     if (document.getElementById('page-transactions').classList.contains('active')) {
         renderTransactions();
     }
+}
+
+// 余额诊断：在控制台和弹窗中显示所有账户余额明细
+function showBalanceDiagnosis() {
+    var transactions = AppState.getTransactions();
+    var accounts = AppState.getAccounts();
+    var lines = [];
+
+    accounts.forEach(function(account) {
+        var initial = (account.initialBalance || 0);
+        var income = 0, expense = 0, transfersIn = 0, transfersOut = 0;
+
+        transactions.forEach(function(t) {
+            var amt = Math.abs(parseFloat(t.amount)) || 0;
+            if (t.type === 'transfer') {
+                if (t.fromAccountId === account.id) transfersOut += amt;
+                if (t.toAccountId === account.id) transfersIn += amt;
+            } else if (t.accountId === account.id) {
+                if (t.type === 'income') income += amt;
+                else if (t.type === 'expense') expense += amt;
+            }
+        });
+
+        var balance = initial + income - expense + transfersIn - transfersOut;
+        var catLabel = account.accountCategory === 'personal' ? '钱包' : account.accountCategory === 'payable' ? '应付' : account.accountCategory === 'receivable' ? '应收' : account.accountCategory || '?';
+        var line = account.name + ' [' + catLabel + ']\n  初始: ¥' + initial.toFixed(2) + '\n  + 收入: ¥' + income.toFixed(2) + '\n  - 支出: ¥' + expense.toFixed(2) + '\n  + 转入: ¥' + transfersIn.toFixed(2) + '\n  - 转出: ¥' + transfersOut.toFixed(2) + '\n  = 余额: ¥' + balance.toFixed(2);
+        lines.push(line);
+    });
+
+    var result = '=== 账户余额明细 ===\n\n' + lines.join('\n---\n');
+    console.log(result);
+    alert(result);
 }
 
 // 工具函数
@@ -7691,15 +7920,16 @@ function renderAccountList() {
     const typeIcons = { alipay: 'fa-alipay', wechat: 'fa-weixin', bank: 'fa-credit-card', cash: 'fa-money-bill-wave', credit_card: 'fa-credit-card', credit_platform: 'fa-laptop', other: 'fa-wallet' };
     const typeNames = { alipay: '支付宝', wechat: '微信支付', bank: '银行卡', cash: '现金', credit_card: '信用卡', credit_platform: '信用平台', other: '其他' };
 
-    // 分组：自有账户在前，信用账户在后
-    var personalAccounts = accounts.filter(function(a) { return a.accountCategory !== 'credit'; });
-    var creditAccounts = accounts.filter(function(a) { return a.accountCategory === 'credit'; });
+    // 三组：自有钱包、应付欠款、应收欠款
+    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var payableAccounts = accounts.filter(function(a) { return a.accountCategory === 'payable' || a.accountCategory === 'credit'; });
+    var receivableAccounts = accounts.filter(function(a) { return a.accountCategory === 'receivable'; });
 
     var html = '';
 
-    // 自有账户组
+    // 自有钱包组
     if (personalAccounts.length > 0) {
-        html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;padding-left:4px;"><i class="fas fa-wallet" style="margin-right:6px;"></i>自有账户</div>';
+        html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;padding-left:4px;"><i class="fas fa-wallet" style="margin-right:6px;"></i>自有钱包</div>';
         personalAccounts.forEach(function(a) {
             var icon = a.icon || typeIcons[a.type] || 'fa-wallet';
             var typeName = typeNames[a.type] || '';
@@ -7721,32 +7951,58 @@ function renderAccountList() {
         });
     }
 
-    // 先用后还账户组
-    if (creditAccounts.length > 0) {
-        html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;padding-left:4px;"><i class="fas fa-credit-card" style="margin-right:6px;"></i>先用后还</div>';
-        creditAccounts.forEach(function(a) {
-            var icon = a.icon || typeIcons[a.type] || 'fa-wallet';
+    // 应付欠款组
+    if (payableAccounts.length > 0) {
+        html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;padding-left:4px;"><i class="fas fa-file-invoice-dollar" style="margin-right:6px;"></i>应付欠款</div>';
+        payableAccounts.forEach(function(a) {
+            var icon = a.icon || 'fa-file-invoice-dollar';
             var typeName = typeNames[a.type] || '';
-            var totalLimit = a.totalLimit || 0;
-            var outstandingDebt = a.outstandingDebt || 0;
-            var available = totalLimit - outstandingDebt;
-            var repaymentDay = a.repaymentDay || '-';
+            var debt = a.outstandingDebt || 0;
+            var creditor = a.creditorName || '';
             html += '<div class="account-manage-card" style="--card-color:' + a.color + '">' +
                 '<div class="account-manage-card-icon" style="background:' + a.color + '">' +
                     '<i class="fas ' + icon + '"></i>' +
                 '</div>' +
                 '<div class="account-manage-card-info">' +
                     '<div class="account-manage-card-name">' + a.name + '</div>' +
-                    '<div class="account-manage-card-type">' + (typeName || '其他') + '</div>' +
+                    '<div class="account-manage-card-type">' + (typeName || '其他') + (creditor ? ' · ' + creditor : '') + '</div>' +
                     '<div class="account-credit-info">' +
-                        '<span>总额度 ¥' + totalLimit.toFixed(2) + '</span>' +
-                        '<span class="credit-used">已用 ¥' + outstandingDebt.toFixed(2) + '</span>' +
-                        '<span class="credit-available">可用 ¥' + available.toFixed(2) + '</span>' +
-                        '<span class="credit-repayment">还款日 ' + repaymentDay + '号</span>' +
+                        '<span class="credit-used">欠款 ¥' + debt.toFixed(2) + '</span>' +
+                        (a.totalLimit ? '<span>额度 ¥' + a.totalLimit.toFixed(2) + '</span>' : '') +
                     '</div>' +
                 '</div>' +
                 '<div class="account-manage-card-actions">' +
-                    '<button class="btn-icon-sm" onclick="showRepaymentModal(\'' + a.id + '\')" title="还款" style="background:#E53935;color:white;"><i class="fas fa-undo"></i></button>' +
+                    '<button class="btn-icon-sm" onclick="showBorrowModal(\'' + a.id + '\', \'payable\')" title="借入" style="background:#FF9800;color:white;"><i class="fas fa-arrow-down"></i></button>' +
+                    '<button class="btn-icon-sm" onclick="showRepayPayableModal(\'' + a.id + '\')" title="偿还" style="background:#4CAF50;color:white;"><i class="fas fa-arrow-up"></i></button>' +
+                    '<button class="btn-icon-sm" onclick="editAccount(\'' + a.id + '\')" title="编辑"><i class="fas fa-pen"></i></button>' +
+                    '<button class="btn-icon-sm btn-icon-sm-danger" onclick="deleteAccount(\'' + a.id + '\')" title="删除"><i class="fas fa-trash"></i></button>' +
+                '</div>' +
+            '</div>';
+        });
+    }
+
+    // 应收欠款组
+    if (receivableAccounts.length > 0) {
+        html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;padding-left:4px;"><i class="fas fa-hand-holding-usd" style="margin-right:6px;"></i>应收欠款</div>';
+        receivableAccounts.forEach(function(a) {
+            var icon = a.icon || 'fa-hand-holding-usd';
+            var typeName = typeNames[a.type] || '';
+            var receivable = a.outstandingDebt || 0;
+            var debtor = a.debtorName || '';
+            html += '<div class="account-manage-card" style="--card-color:' + a.color + '">' +
+                '<div class="account-manage-card-icon" style="background:' + a.color + '">' +
+                    '<i class="fas ' + icon + '"></i>' +
+                '</div>' +
+                '<div class="account-manage-card-info">' +
+                    '<div class="account-manage-card-name">' + a.name + '</div>' +
+                    '<div class="account-manage-card-type">' + (typeName || '其他') + (debtor ? ' · ' + debtor : '') + '</div>' +
+                    '<div class="account-credit-info">' +
+                        '<span>应收 ¥' + receivable.toFixed(2) + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="account-manage-card-actions">' +
+                    '<button class="btn-icon-sm" onclick="showLendModal(\'' + a.id + '\')" title="借出" style="background:#FF9800;color:white;"><i class="fas fa-arrow-up"></i></button>' +
+                    '<button class="btn-icon-sm" onclick="showCollectModal(\'' + a.id + '\')" title="收回" style="background:#4CAF50;color:white;"><i class="fas fa-arrow-down"></i></button>' +
                     '<button class="btn-icon-sm" onclick="editAccount(\'' + a.id + '\')" title="编辑"><i class="fas fa-pen"></i></button>' +
                     '<button class="btn-icon-sm btn-icon-sm-danger" onclick="deleteAccount(\'' + a.id + '\')" title="删除"><i class="fas fa-trash"></i></button>' +
                 '</div>' +
@@ -7766,6 +8022,8 @@ function showAddAccountModal() {
     document.getElementById('account-balance').value = '0';
     document.getElementById('account-total-limit').value = '';
     document.getElementById('account-repayment-day').value = '';
+    document.getElementById('account-creditor-name').value = '';
+    document.getElementById('account-debtor-name').value = '';
     resetColorPicker('account-color-picker', '#2196F3');
     toggleAccountCategoryFields();
     document.getElementById('account-modal').classList.add('active');
@@ -7780,9 +8038,11 @@ function editAccount(id) {
     document.getElementById('account-name').value = account.name;
     document.getElementById('account-type').value = account.type || 'other';
     document.getElementById('account-category').value = account.accountCategory || 'personal';
-    document.getElementById('account-balance').value = account.balance || 0;
+    document.getElementById('account-balance').value = account.initialBalance !== undefined ? (account.initialBalance || 0) : (account.balance || 0);
     document.getElementById('account-total-limit').value = account.totalLimit || '';
     document.getElementById('account-repayment-day').value = account.repaymentDay || '';
+    document.getElementById('account-creditor-name').value = account.creditorName || '';
+    document.getElementById('account-debtor-name').value = account.debtorName || '';
     resetColorPicker('account-color-picker', account.color || '#2196F3');
     toggleAccountCategoryFields();
     document.getElementById('account-modal').classList.add('active');
@@ -7790,17 +8050,25 @@ function editAccount(id) {
 
 function toggleAccountCategoryFields() {
     var cat = document.getElementById('account-category').value;
-    var creditFields = document.getElementById('credit-fields');
+    var payableFields = document.getElementById('payable-fields');
+    var receivableFields = document.getElementById('receivable-fields');
     var personalGroup = document.getElementById('personal-balance-group');
     var hint = document.getElementById('account-category-hint');
-    if (cat === 'credit') {
-        creditFields.style.display = '';
-        personalGroup.style.display = 'none';
-        hint.textContent = '平台授予额度，消费计入欠款，按期还款';
-    } else {
-        creditFields.style.display = 'none';
+    if (cat === 'personal') {
+        payableFields.style.display = 'none';
+        receivableFields.style.display = 'none';
         personalGroup.style.display = '';
         hint.textContent = '实际持有、可自由支配的余额';
+    } else if (cat === 'payable') {
+        payableFields.style.display = '';
+        receivableFields.style.display = 'none';
+        personalGroup.style.display = 'none';
+        hint.textContent = '负债账户，必须绑定债权人';
+    } else if (cat === 'receivable') {
+        payableFields.style.display = 'none';
+        receivableFields.style.display = '';
+        personalGroup.style.display = 'none';
+        hint.textContent = '资产账户，必须绑定债务人';
     }
 }
 
@@ -7814,28 +8082,48 @@ function saveAccount() {
     var accounts = AppState.getAccounts();
     var baseData = { name: name, type: type, accountCategory: category, color: color };
 
-    if (category === 'credit') {
-        // 信用账户
+    if (category === 'payable') {
+        // 应付欠款（负债）
+        var creditorName = document.getElementById('account-creditor-name').value.trim();
+        if (!creditorName) { showToast('必须填写债权人'); return; }
         var totalLimit = parseFloat(document.getElementById('account-total-limit').value) || 0;
         var repaymentDay = parseInt(document.getElementById('account-repayment-day').value) || 0;
-        if (totalLimit <= 0) { showToast('请输入有效额度'); return; }
 
-        baseData.balance = 0; // 信用账户没有余额概念
+        baseData.creditorName = creditorName;
         baseData.totalLimit = totalLimit;
         baseData.repaymentDay = repaymentDay;
-        baseData.outstandingDebt = baseData.outstandingDebt || 0;
+        baseData.balance = 0;
+        baseData.outstandingDebt = 0; // 由交易计算
+        baseData.debtorName = '';
 
-        // 设置图标
         if (!editingAccountId) {
-            baseData.icon = type === 'credit_card' ? 'fa-credit-card' : (type === 'credit_platform' ? 'fa-laptop' : 'fa-wallet');
+            baseData.icon = type === 'credit_card' ? 'fa-credit-card' : (type === 'credit_platform' ? 'fa-laptop' : 'fa-file-invoice-dollar');
+        }
+    } else if (category === 'receivable') {
+        // 应收欠款（资产）
+        var debtorName = document.getElementById('account-debtor-name').value.trim();
+        if (!debtorName) { showToast('必须填写债务人'); return; }
+
+        baseData.debtorName = debtorName;
+        baseData.balance = 0;
+        baseData.outstandingDebt = 0; // 由交易计算
+        baseData.creditorName = '';
+        baseData.totalLimit = 0;
+        baseData.repaymentDay = 0;
+
+        if (!editingAccountId) {
+            baseData.icon = type === 'bank' ? 'fa-hand-holding-usd' : 'fa-file-invoice-dollar';
         }
     } else {
-        // 自有账户
-        var balance = parseFloat(document.getElementById('account-balance').value) || 0;
-        baseData.balance = balance;
+        // 自有钱包
+        var initialBalance = parseFloat(document.getElementById('account-balance').value) || 0;
+        baseData.initialBalance = initialBalance;
+        baseData.balance = initialBalance; // 初始值，后续 recalculate 重算
         baseData.totalLimit = 0;
         baseData.repaymentDay = 0;
         baseData.outstandingDebt = 0;
+        baseData.creditorName = '';
+        baseData.debtorName = '';
     }
 
     if (editingAccountId) {
@@ -7850,6 +8138,12 @@ function saveAccount() {
         accounts.push(Object.assign({ id: generateId() }, baseData));
     }
     AppState.saveAccounts(accounts);
+
+    // 重算所有账户余额（初始余额 + 交易计算）
+    recalculateAllAccountBalances();
+
+    console.log('[saveAccount] 保存后账户列表:', JSON.stringify(AppState.getAccounts().map(a => ({id: a.id, name: a.name, category: a.accountCategory, initialBalance: a.initialBalance, balance: a.balance}))));
+
     closeModal('account-modal');
     renderAccountList();
     renderHome();
@@ -7876,7 +8170,7 @@ function showRepaymentModal(creditAccountId) {
     document.getElementById('repayment-amount').placeholder = '不填则全额还款 ¥' + debt.toFixed(2);
 
     // 填充自有账户选项
-    var personalAccounts = accounts.filter(function(a) { return (a.accountCategory || 'personal') !== 'credit'; });
+    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
     var opts = '<option value="">选择还款账户...</option>' +
         personalAccounts.map(function(a) {
             return '<option value="' + a.id + '">' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>';
@@ -7907,12 +8201,7 @@ function executeRepayment() {
     if (!fromAccount) { showToast('还款账户不存在'); return; }
     if (fromAccount.balance < amount) { showToast(fromAccount.name + ' 余额不足 (¥' + fromAccount.balance.toFixed(2) + ')'); return; }
 
-    // 执行还款
-    fromAccount.balance -= amount;
-    creditAccount.outstandingDebt = debt - amount;
-    AppState.saveAccounts(accounts);
-
-    // 记录还款交易
+    // 记录还款交易（由 recalculate 统一计算余额）
     var now = new Date();
     var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     var timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':00';
@@ -7936,11 +8225,285 @@ function executeRepayment() {
 
     closeModal('repayment-modal');
     repaymentCreditAccountId = null;
-    renderAccountList();
-    renderHome();
+    refreshAllData();
     showToast('还款成功 ¥' + amount.toFixed(2));
 }
 // ===== 还款功能结束 =====
+
+// ===== 资金变动操作 =====
+var fundMovementAccountId = null;
+
+// 获取当前时间字符串
+function nowDateStr() {
+    var now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' +
+           String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+}
+
+// 借入：应付欠款增加，自有钱包增加
+function showBorrowModal(payableId, type) {
+    var accounts = AppState.getAccounts();
+    var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+    if (!payableAcc) return;
+
+    fundMovementAccountId = payableId;
+    var debt = payableAcc.outstandingDebt || 0;
+    document.getElementById('borrow-info').innerHTML =
+        '<div style="padding:12px;background:var(--bg-color);border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">' + payableAcc.name + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">债权人：' + (payableAcc.creditorName || '-') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">当前欠款：<strong style="color:#E53935;">¥' + debt.toFixed(2) + '</strong></div>' +
+        '</div>';
+
+    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    document.getElementById('borrow-to-wallet').innerHTML =
+        '<option value="">选择钱包...</option>' +
+        walletAccounts.map(function(a) {
+            return '<option value="' + a.id + '">' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>';
+        }).join('');
+    document.getElementById('borrow-amount').value = '';
+    document.getElementById('borrow-note').value = '';
+    closeModal('account-modal');
+    document.getElementById('borrow-modal').classList.add('active');
+}
+
+function executeBorrow() {
+    var amount = parseFloat(document.getElementById('borrow-amount').value);
+    var toWalletId = document.getElementById('borrow-to-wallet').value;
+    var note = document.getElementById('borrow-note').value.trim();
+    if (isNaN(amount) || amount <= 0) { showToast('请输入有效金额'); return; }
+    if (!toWalletId) { showToast('请选择钱包'); return; }
+
+    var accounts = AppState.getAccounts();
+    var payableAcc = accounts.find(function(a) { return a.id === fundMovementAccountId; });
+    var walletAcc = accounts.find(function(a) { return a.id === toWalletId; });
+    if (!payableAcc || !walletAcc) { showToast('账户不存在'); return; }
+
+    // 应付欠款：支出类型交易 → 欠款增加（由 recalculate 计算）
+    var tx1 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'expense',
+        counterparty: '借入（' + payableAcc.creditorName + '）', categoryId: '',
+        categoryRaw: '借入', accountId: payableAcc.id, note: note || '借入资金',
+        status: 'processed', tags: ['资金变动']
+    };
+    // 钱包：收入类型交易 → 余额增加（由 recalculate 计算）
+    var tx2 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'income',
+        counterparty: '从' + payableAcc.creditorName + '借入', categoryId: '',
+        categoryRaw: '借款收入', accountId: walletAcc.id, note: note || '借入资金到钱包',
+        status: 'processed', tags: ['资金变动']
+    };
+    AppState.addTransaction(tx1);
+    AppState.addTransaction(tx2);
+
+    closeModal('borrow-modal');
+    fundMovementAccountId = null;
+    refreshAllData();
+    showToast('借入成功 ¥' + amount.toFixed(2));
+}
+
+// 偿还应付：自有钱包减少，应付欠款减少
+function showRepayPayableModal(payableId) {
+    var accounts = AppState.getAccounts();
+    var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+    if (!payableAcc) return;
+
+    fundMovementAccountId = payableId;
+    var debt = payableAcc.outstandingDebt || 0;
+    document.getElementById('repay-payable-info').innerHTML =
+        '<div style="padding:12px;background:var(--bg-color);border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">' + payableAcc.name + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">债权人：' + (payableAcc.creditorName || '-') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">当前欠款：<strong style="color:#E53935;">¥' + debt.toFixed(2) + '</strong></div>' +
+        '</div>';
+    document.getElementById('repay-payable-amount').value = '';
+    document.getElementById('repay-payable-amount').placeholder = '默认全额 ¥' + debt.toFixed(2);
+
+    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    document.getElementById('repay-payable-from').innerHTML =
+        '<option value="">选择钱包...</option>' +
+        walletAccounts.map(function(a) {
+            return '<option value="' + a.id + '">' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>';
+        }).join('');
+    document.getElementById('repay-payable-note').value = '';
+    closeModal('account-modal');
+    document.getElementById('repay-payable-modal').classList.add('active');
+}
+
+function executeRepayPayable() {
+    var amountInput = document.getElementById('repay-payable-amount').value;
+    var fromWalletId = document.getElementById('repay-payable-from').value;
+    var note = document.getElementById('repay-payable-note').value.trim();
+
+    var accounts = AppState.getAccounts();
+    var payableAcc = accounts.find(function(a) { return a.id === fundMovementAccountId; });
+    if (!payableAcc) return;
+
+    var debt = payableAcc.outstandingDebt || 0;
+    var amount = amountInput ? parseFloat(amountInput) : debt;
+    if (isNaN(amount) || amount <= 0) { showToast('请输入有效金额'); return; }
+    if (amount > debt) { showToast('偿还金额不能超过欠款 ¥' + debt.toFixed(2)); return; }
+    if (!fromWalletId) { showToast('请选择钱包'); return; }
+
+    var walletAcc = accounts.find(function(a) { return a.id === fromWalletId; });
+    if (!walletAcc) { showToast('钱包不存在'); return; }
+    if (walletAcc.balance < amount) { showToast(walletAcc.name + ' 余额不足 (¥' + walletAcc.balance.toFixed(2) + ')'); return; }
+
+    // 应付欠款：收入类型交易 → 欠款减少
+    var tx1 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'income',
+        counterparty: '偿还（' + payableAcc.creditorName + '）', categoryId: '',
+        categoryRaw: '偿还', accountId: payableAcc.id, note: note || '偿还欠款',
+        status: 'processed', tags: ['资金变动']
+    };
+    // 钱包：支出类型交易 → 余额减少
+    var tx2 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'expense',
+        counterparty: '偿还至' + payableAcc.creditorName, categoryId: '',
+        categoryRaw: '偿还支出', accountId: walletAcc.id, note: note || '从钱包偿还欠款',
+        status: 'processed', tags: ['资金变动']
+    };
+    AppState.addTransaction(tx1);
+    AppState.addTransaction(tx2);
+
+    closeModal('repay-payable-modal');
+    fundMovementAccountId = null;
+    refreshAllData();
+    showToast('偿还成功 ¥' + amount.toFixed(2));
+}
+
+// 借出：自有钱包减少，应收欠款增加
+function showLendModal(receivableId) {
+    var accounts = AppState.getAccounts();
+    var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+    if (!receivableAcc) return;
+
+    fundMovementAccountId = receivableId;
+    var receivable = receivableAcc.outstandingDebt || 0;
+    document.getElementById('lend-info').innerHTML =
+        '<div style="padding:12px;background:var(--bg-color);border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">' + receivableAcc.name + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">债务人：' + (receivableAcc.debtorName || '-') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">当前应收：<strong style="color:#FF9800;">¥' + receivable.toFixed(2) + '</strong></div>' +
+        '</div>';
+
+    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    document.getElementById('lend-from-wallet').innerHTML =
+        '<option value="">选择钱包...</option>' +
+        walletAccounts.map(function(a) {
+            return '<option value="' + a.id + '">' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>';
+        }).join('');
+    document.getElementById('lend-amount').value = '';
+    document.getElementById('lend-note').value = '';
+    closeModal('account-modal');
+    document.getElementById('lend-modal').classList.add('active');
+}
+
+function executeLend() {
+    var amount = parseFloat(document.getElementById('lend-amount').value);
+    var fromWalletId = document.getElementById('lend-from-wallet').value;
+    var note = document.getElementById('lend-note').value.trim();
+    if (isNaN(amount) || amount <= 0) { showToast('请输入有效金额'); return; }
+    if (!fromWalletId) { showToast('请选择钱包'); return; }
+
+    var accounts = AppState.getAccounts();
+    var receivableAcc = accounts.find(function(a) { return a.id === fundMovementAccountId; });
+    var walletAcc = accounts.find(function(a) { return a.id === fromWalletId; });
+    if (!receivableAcc || !walletAcc) { showToast('账户不存在'); return; }
+    if (walletAcc.balance < amount) { showToast(walletAcc.name + ' 余额不足 (¥' + walletAcc.balance.toFixed(2) + ')'); return; }
+
+    // 应收欠款：支出类型交易 → 应收增加
+    var tx1 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'expense',
+        counterparty: '借出（' + receivableAcc.debtorName + '）', categoryId: '',
+        categoryRaw: '借出', accountId: receivableAcc.id, note: note || '借出资金',
+        status: 'processed', tags: ['资金变动']
+    };
+    // 钱包：支出类型交易 → 余额减少
+    var tx2 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'expense',
+        counterparty: '借出至' + receivableAcc.debtorName, categoryId: '',
+        categoryRaw: '借出支出', accountId: walletAcc.id, note: note || '从钱包借出资金',
+        status: 'processed', tags: ['资金变动']
+    };
+    AppState.addTransaction(tx1);
+    AppState.addTransaction(tx2);
+
+    closeModal('lend-modal');
+    fundMovementAccountId = null;
+    refreshAllData();
+    showToast('借出成功 ¥' + amount.toFixed(2));
+}
+
+// 收回应收：自有钱包增加，应收欠款减少
+function showCollectModal(receivableId) {
+    var accounts = AppState.getAccounts();
+    var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+    if (!receivableAcc) return;
+
+    fundMovementAccountId = receivableId;
+    var receivable = receivableAcc.outstandingDebt || 0;
+    document.getElementById('collect-info').innerHTML =
+        '<div style="padding:12px;background:var(--bg-color);border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">' + receivableAcc.name + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">债务人：' + (receivableAcc.debtorName || '-') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">当前应收：<strong style="color:#FF9800;">¥' + receivable.toFixed(2) + '</strong></div>' +
+        '</div>';
+    document.getElementById('collect-amount').value = '';
+    document.getElementById('collect-amount').placeholder = '默认全额 ¥' + receivable.toFixed(2);
+
+    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    document.getElementById('collect-to-wallet').innerHTML =
+        '<option value="">选择钱包...</option>' +
+        walletAccounts.map(function(a) {
+            return '<option value="' + a.id + '">' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>';
+        }).join('');
+    document.getElementById('collect-note').value = '';
+    closeModal('account-modal');
+    document.getElementById('collect-modal').classList.add('active');
+}
+
+function executeCollect() {
+    var amountInput = document.getElementById('collect-amount').value;
+    var toWalletId = document.getElementById('collect-to-wallet').value;
+    var note = document.getElementById('collect-note').value.trim();
+
+    var accounts = AppState.getAccounts();
+    var receivableAcc = accounts.find(function(a) { return a.id === fundMovementAccountId; });
+    if (!receivableAcc) return;
+
+    var receivable = receivableAcc.outstandingDebt || 0;
+    var amount = amountInput ? parseFloat(amountInput) : receivable;
+    if (isNaN(amount) || amount <= 0) { showToast('请输入有效金额'); return; }
+    if (amount > receivable) { showToast('收回金额不能超过应收 ¥' + receivable.toFixed(2)); return; }
+    if (!toWalletId) { showToast('请选择钱包'); return; }
+
+    var walletAcc = accounts.find(function(a) { return a.id === toWalletId; });
+    if (!walletAcc) { showToast('钱包不存在'); return; }
+
+    // 应收欠款：收入类型交易 → 应收减少
+    var tx1 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'income',
+        counterparty: '收回（' + receivableAcc.debtorName + '）', categoryId: '',
+        categoryRaw: '收回', accountId: receivableAcc.id, note: note || '收回资金',
+        status: 'processed', tags: ['资金变动']
+    };
+    // 钱包：收入类型交易 → 余额增加
+    var tx2 = {
+        id: generateId(), date: nowDateStr(), amount: amount, type: 'income',
+        counterparty: '从' + receivableAcc.debtorName + '收回', categoryId: '',
+        categoryRaw: '收回收入', accountId: walletAcc.id, note: note || '收回资金到钱包',
+        status: 'processed', tags: ['资金变动']
+    };
+    AppState.addTransaction(tx1);
+    AppState.addTransaction(tx2);
+
+    closeModal('collect-modal');
+    fundMovementAccountId = null;
+    refreshAllData();
+    showToast('收回成功 ¥' + amount.toFixed(2));
+}
+// ===== 资金变动操作结束 =====
 
 function deleteAccount(id) {
     showConfirm('确认删除', '删除账户后相关交易将变为未指定账户', function() {
@@ -8638,15 +9201,7 @@ function saveTransaction() {
         var originalAmount = Math.abs(parseFloat(transactions[idx].amount)) || 0;
         if (originalAmount <= 0) { showToast('账单金额无效'); return; }
 
-        // 更新账户余额
-        var accounts = AppState.getAccounts();
-        var fromAcc = accounts.find(function(a) { return a.id === fromAccountId; });
-        var toAcc = accounts.find(function(a) { return a.id === toAccountId; });
-        if (fromAcc) fromAcc.balance -= originalAmount;
-        if (toAcc) toAcc.balance += originalAmount;
-        AppState.saveAccounts(accounts);
-
-        // 更新交易数据
+        // 更新交易数据（余额由 recalculateAllAccountBalances 统一计算）
         transactions[idx].type = 'transfer';
         transactions[idx].categoryId = '11'; // 账户互转分类
         transactions[idx].fromAccountId = fromAccountId;
@@ -8881,7 +9436,7 @@ function saveNaturalLanguage() {
 
     // 设置默认账户
     var accounts = AppState.getAccounts();
-    var personalAccounts = accounts.filter(function(a) { return a.accountCategory !== 'credit'; });
+    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
     if (personalAccounts.length > 0) {
         document.getElementById('add-account').value = personalAccounts[0].id;
     }
@@ -8966,14 +9521,6 @@ function saveAddTransaction() {
             return;
         }
 
-        // 更新账户余额
-        var accounts = AppState.getAccounts();
-        var fromAcc = accounts.find(function(a) { return a.id === fromAccountId; });
-        var toAcc = accounts.find(function(a) { return a.id === toAccountId; });
-        if (fromAcc) fromAcc.balance -= amount;
-        if (toAcc) toAcc.balance += amount;
-        AppState.saveAccounts(accounts);
-
         transaction = {
             id: generateId(),
             date: date,
@@ -9003,24 +9550,8 @@ function saveAddTransaction() {
             return;
         }
 
-        // 更新账户余额 / 信用额度
+        // 更新账户余额 / 欠款（由 recalculate 统一计算）
         var accounts2 = AppState.getAccounts();
-        var acc = accounts2.find(function(a) { return a.id === accountId; });
-        if (acc) {
-            if (acc.accountCategory === 'credit') {
-                // 信用账户：消费不扣余额，直接增加欠款
-                if (type === 'expense') {
-                    acc.outstandingDebt = (acc.outstandingDebt || 0) + amount;
-                } else if (type === 'income') {
-                    // 退款/收入：减少欠款
-                    acc.outstandingDebt = Math.max(0, (acc.outstandingDebt || 0) - amount);
-                }
-            } else {
-                // 自有账户：正常余额变动
-                if (type === 'income') acc.balance += amount;
-                else acc.balance -= amount;
-            }
-        }
         AppState.saveAccounts(accounts2);
 
         transaction = {
@@ -9041,8 +9572,7 @@ function saveAddTransaction() {
 
     AppState.addTransaction(transaction);
     closeModal('add-transaction-modal');
-    renderTransactions();
-    renderHome();
+    refreshAllData();
     showToast('记账成功');
 }
 
@@ -9532,6 +10062,7 @@ function executeTransfer(fromAccountId, toAccountId, amount, dateValue, note, fr
 
           initSampleData();
           migrateOldData();
+          migrateCreditToPayable();
           initAccountFilter();
           initCategoryFilter();
           renderHome();
