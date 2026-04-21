@@ -4726,6 +4726,10 @@ body {
                         <option value="expense">支出</option>
                         <option value="income">收入</option>
                         <option value="transfer">转账</option>
+                        <option value="borrow_in">借入</option>
+                        <option value="lend_out">借出</option>
+                        <option value="repay">还款</option>
+                        <option value="collect">收款</option>
                     </select>
                 </div>
                 <!-- 金额 -->
@@ -4765,6 +4769,42 @@ body {
                     <select class="form-select" id="add-to-account">
                         <option value="">选择转入账户...</option>
                     </select>
+                </div>
+                <!-- 借入字段 -->
+                <div class="form-group" id="add-borrow-wallet-group" style="display:none;">
+                    <label class="form-label">借入至（钱包）</label>
+                    <select class="form-select" id="add-borrow-wallet"></select>
+                </div>
+                <div class="form-group" id="add-borrow-payable-group" style="display:none;">
+                    <label class="form-label">应付账户（债权人）</label>
+                    <select class="form-select" id="add-borrow-payable"></select>
+                </div>
+                <!-- 借出字段 -->
+                <div class="form-group" id="add-lend-wallet-group" style="display:none;">
+                    <label class="form-label">从哪个钱包借出</label>
+                    <select class="form-select" id="add-lend-wallet"></select>
+                </div>
+                <div class="form-group" id="add-lend-receivable-group" style="display:none;">
+                    <label class="form-label">应收账户（债务人）</label>
+                    <select class="form-select" id="add-lend-receivable"></select>
+                </div>
+                <!-- 还款字段 -->
+                <div class="form-group" id="add-repay-wallet-group" style="display:none;">
+                    <label class="form-label">从哪个钱包还款</label>
+                    <select class="form-select" id="add-repay-wallet"></select>
+                </div>
+                <div class="form-group" id="add-repay-payable-group" style="display:none;">
+                    <label class="form-label">应付账户（债权人）</label>
+                    <select class="form-select" id="add-repay-payable"></select>
+                </div>
+                <!-- 收款字段 -->
+                <div class="form-group" id="add-collect-wallet-group" style="display:none;">
+                    <label class="form-label">收至哪个钱包</label>
+                    <select class="form-select" id="add-collect-wallet"></select>
+                </div>
+                <div class="form-group" id="add-collect-receivable-group" style="display:none;">
+                    <label class="form-label">应收账户（债务人）</label>
+                    <select class="form-select" id="add-collect-receivable"></select>
                 </div>
                 <!-- 商品说明/备注 -->
                 <div class="form-group">
@@ -4937,6 +4977,10 @@ body {
                         <option value="expense">支出</option>
                         <option value="income">收入</option>
                         <option value="transfer">转账</option>
+                        <option value="borrow_in">借入</option>
+                        <option value="lend_out">借出</option>
+                        <option value="repay">还款</option>
+                        <option value="collect">收款</option>
                     </select>
                 </div>
                 <div class="category-selector" id="process-category-section">
@@ -4954,6 +4998,58 @@ body {
                 <div class="form-group" id="process-account-group" style="display: none;">
                     <label class="form-label">账户</label>
                     <select class="form-select" id="process-account">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <!-- 借入字段 -->
+                <div class="form-group" id="process-borrow-wallet-group" style="display: none;">
+                    <label class="form-label">借入至（钱包）</label>
+                    <select class="form-select" id="process-borrow-wallet">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group" id="process-borrow-payable-group" style="display: none;">
+                    <label class="form-label">应付账户（债权人）</label>
+                    <select class="form-select" id="process-borrow-payable">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <!-- 借出字段 -->
+                <div class="form-group" id="process-lend-wallet-group" style="display: none;">
+                    <label class="form-label">从哪个钱包借出</label>
+                    <select class="form-select" id="process-lend-wallet">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group" id="process-lend-receivable-group" style="display: none;">
+                    <label class="form-label">应收账户（债务人）</label>
+                    <select class="form-select" id="process-lend-receivable">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <!-- 还款字段 -->
+                <div class="form-group" id="process-repay-wallet-group" style="display: none;">
+                    <label class="form-label">从哪个钱包还款</label>
+                    <select class="form-select" id="process-repay-wallet">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group" id="process-repay-payable-group" style="display: none;">
+                    <label class="form-label">应付账户（债权人）</label>
+                    <select class="form-select" id="process-repay-payable">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <!-- 收款字段 -->
+                <div class="form-group" id="process-collect-wallet-group" style="display: none;">
+                    <label class="form-label">收至哪个钱包</label>
+                    <select class="form-select" id="process-collect-wallet">
+                        <!-- 动态生成 -->
+                    </select>
+                </div>
+                <div class="form-group" id="process-collect-receivable-group" style="display: none;">
+                    <label class="form-label">应收账户（债务人）</label>
+                    <select class="form-select" id="process-collect-receivable">
                         <!-- 动态生成 -->
                     </select>
                 </div>
@@ -5014,6 +5110,10 @@ body {
                         <option value="expense">支出</option>
                         <option value="income">收入</option>
                         <option value="transfer">转账</option>
+                        <option value="borrow_in">借入</option>
+                        <option value="lend_out">借出</option>
+                        <option value="repay">还款</option>
+                        <option value="collect">收款</option>
                     </select>
                 </div>
                 <div class="form-group" id="edit-counterparty-group">
@@ -5043,6 +5143,42 @@ body {
                     <select class="form-select" id="edit-account">
                         <!-- 动态生成 -->
                     </select>
+                </div>
+                <!-- 借入字段 -->
+                <div class="form-group" id="edit-borrow-wallet-group" style="display: none;">
+                    <label class="form-label">借入至（钱包）</label>
+                    <select class="form-select" id="edit-borrow-wallet"></select>
+                </div>
+                <div class="form-group" id="edit-borrow-payable-group" style="display: none;">
+                    <label class="form-label">应付账户（债权人）</label>
+                    <select class="form-select" id="edit-borrow-payable"></select>
+                </div>
+                <!-- 借出字段 -->
+                <div class="form-group" id="edit-lend-wallet-group" style="display: none;">
+                    <label class="form-label">从哪个钱包借出</label>
+                    <select class="form-select" id="edit-lend-wallet"></select>
+                </div>
+                <div class="form-group" id="edit-lend-receivable-group" style="display: none;">
+                    <label class="form-label">应收账户（债务人）</label>
+                    <select class="form-select" id="edit-lend-receivable"></select>
+                </div>
+                <!-- 还款字段 -->
+                <div class="form-group" id="edit-repay-wallet-group" style="display: none;">
+                    <label class="form-label">从哪个钱包还款</label>
+                    <select class="form-select" id="edit-repay-wallet"></select>
+                </div>
+                <div class="form-group" id="edit-repay-payable-group" style="display: none;">
+                    <label class="form-label">应付账户（债权人）</label>
+                    <select class="form-select" id="edit-repay-payable"></select>
+                </div>
+                <!-- 收款字段 -->
+                <div class="form-group" id="edit-collect-wallet-group" style="display: none;">
+                    <label class="form-label">收至哪个钱包</label>
+                    <select class="form-select" id="edit-collect-wallet"></select>
+                </div>
+                <div class="form-group" id="edit-collect-receivable-group" style="display: none;">
+                    <label class="form-label">应收账户（债务人）</label>
+                    <select class="form-select" id="edit-collect-receivable"></select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">日期时间</label>
@@ -9222,19 +9358,64 @@ function toggleProcessTypeFields() {
     var accountGroup = document.getElementById('process-account-group');
     var createRuleLabel = document.getElementById('process-create-rule-label');
 
+    // 获取导入时勾选的账户作为钱包默认值
+    var importedAccountId = document.getElementById('process-account').value || '';
+
+    // 隐藏所有新增类型字段
+    var newGroups = ['process-borrow-wallet-group','process-borrow-payable-group','process-lend-wallet-group','process-lend-receivable-group','process-repay-wallet-group','process-repay-payable-group','process-collect-wallet-group','process-collect-receivable-group'];
+    newGroups.forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+
     if (type === 'transfer') {
-        // 转账：隐藏分类，显示转入账户和账户选择器
         if (categorySection) categorySection.style.display = 'none';
         if (toAccountGroup) toAccountGroup.style.display = 'block';
         if (accountGroup) accountGroup.style.display = 'block';
         if (createRuleLabel) createRuleLabel.style.display = 'none';
+    } else if (type === 'borrow_in') {
+        if (categorySection) categorySection.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        if (createRuleLabel) createRuleLabel.style.display = 'none';
+        var g1 = document.getElementById('process-borrow-wallet-group'); if (g1) g1.style.display = 'block';
+        var g2 = document.getElementById('process-borrow-payable-group'); if (g2) g2.style.display = 'block';
+        populatePersonalWalletSelect('process-borrow-wallet', importedAccountId);
+        populatePayableSelect('process-borrow-payable', '');
+        autoMatchPayable('process-borrow-payable');
+    } else if (type === 'lend_out') {
+        if (categorySection) categorySection.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        if (createRuleLabel) createRuleLabel.style.display = 'none';
+        var g3 = document.getElementById('process-lend-wallet-group'); if (g3) g3.style.display = 'block';
+        var g4 = document.getElementById('process-lend-receivable-group'); if (g4) g4.style.display = 'block';
+        populatePersonalWalletSelect('process-lend-wallet', importedAccountId);
+        populateReceivableSelect('process-lend-receivable', '');
+        autoMatchReceivable('process-lend-receivable');
+    } else if (type === 'repay') {
+        if (categorySection) categorySection.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        if (createRuleLabel) createRuleLabel.style.display = 'none';
+        var g5 = document.getElementById('process-repay-wallet-group'); if (g5) g5.style.display = 'block';
+        var g6 = document.getElementById('process-repay-payable-group'); if (g6) g6.style.display = 'block';
+        populatePersonalWalletSelect('process-repay-wallet', importedAccountId);
+        populatePayableSelect('process-repay-payable', '');
+        autoMatchPayable('process-repay-payable');
+    } else if (type === 'collect') {
+        if (categorySection) categorySection.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        if (createRuleLabel) createRuleLabel.style.display = 'none';
+        var g7 = document.getElementById('process-collect-wallet-group'); if (g7) g7.style.display = 'block';
+        var g8 = document.getElementById('process-collect-receivable-group'); if (g8) g8.style.display = 'block';
+        populatePersonalWalletSelect('process-collect-wallet', importedAccountId);
+        populateReceivableSelect('process-collect-receivable', '');
+        autoMatchReceivable('process-collect-receivable');
     } else {
         // 收入/支出：显示分类，隐藏转账字段
         if (categorySection) categorySection.style.display = 'block';
         if (toAccountGroup) toAccountGroup.style.display = 'none';
         if (accountGroup) accountGroup.style.display = 'block';
         if (createRuleLabel) createRuleLabel.style.display = 'flex';
-        // 重新填充对应类型的分类
         populateCategoryGrid('category-grid', type);
     }
 }
@@ -9250,8 +9431,13 @@ function saveTransaction() {
     var idx = transactions.findIndex(function(t) { return t.id === processingTransactionId; });
     if (idx === -1) return;
 
+    var originalAmount = Math.abs(parseFloat(transactions[idx].amount)) || 0;
+    if (originalAmount <= 0) { showToast('账单金额无效'); return; }
+
+    var accounts = AppState.getAccounts();
+    var t = transactions[idx];
+
     if (type === 'transfer') {
-        // 转账类型验证
         var toAccountId = document.getElementById('process-to-account').value;
         var fromAccountId = document.getElementById('process-account').value;
 
@@ -9259,18 +9445,130 @@ function saveTransaction() {
         if (!toAccountId) { showToast('请选择转入账户'); return; }
         if (fromAccountId === toAccountId) { showToast('转出和转入账户不能相同'); return; }
 
-        // 获取金额（原始数据中的金额视为正数）
-        var originalAmount = Math.abs(parseFloat(transactions[idx].amount)) || 0;
-        if (originalAmount <= 0) { showToast('账单金额无效'); return; }
-
-        // 更新交易数据（余额由 recalculateAllAccountBalances 统一计算）
         transactions[idx].type = 'transfer';
-        transactions[idx].categoryId = '11'; // 账户互转分类
+        transactions[idx].categoryId = '11';
         transactions[idx].fromAccountId = fromAccountId;
         transactions[idx].toAccountId = toAccountId;
         transactions[idx].accountId = fromAccountId;
         transactions[idx].counterparty = transactions[idx].counterparty || '账户转账';
         transactions[idx].isMatched = true;
+    } else if (type === 'borrow_in') {
+        var walletId = document.getElementById('process-borrow-wallet').value;
+        var payableId = document.getElementById('process-borrow-payable').value;
+        if (!walletId) { showToast('请选择借入至哪个钱包'); return; }
+        if (!payableId) { showToast('请选择应付账户'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+        if (!walletAcc || !payableAcc) { showToast('账户不存在'); return; }
+
+        // 更新原交易记录为应付账户记录
+        transactions[idx].type = 'expense';
+        transactions[idx].amount = originalAmount;
+        transactions[idx].counterparty = '借入（' + payableAcc.creditorName + '）';
+        transactions[idx].categoryRaw = '借入';
+        transactions[idx].categoryId = '';
+        transactions[idx].accountId = payableAcc.id;
+        transactions[idx].note = transactions[idx].note || '借入资金';
+        transactions[idx].isMatched = true;
+
+        // 新增钱包收入记录
+        var walletTx = {
+            id: generateId(), date: t.date, dateRaw: t.dateRaw || formatDate(t.date),
+            type: 'income', amount: originalAmount,
+            counterparty: '从' + payableAcc.creditorName + '借入',
+            categoryRaw: '借款收入', categoryId: '',
+            accountId: walletAcc.id, note: t.note || '借入资金到钱包',
+            rawData: t.rawData || {}, isMatched: true
+        };
+        transactions.push(walletTx);
+    } else if (type === 'lend_out') {
+        var walletId = document.getElementById('process-lend-wallet').value;
+        var receivableId = document.getElementById('process-lend-receivable').value;
+        if (!walletId) { showToast('请选择从哪个钱包借出'); return; }
+        if (!receivableId) { showToast('请选择应收账户'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+        if (!walletAcc || !receivableAcc) { showToast('账户不存在'); return; }
+        if (walletAcc.balance < originalAmount) { showToast('钱包余额不足'); return; }
+
+        transactions[idx].type = 'expense';
+        transactions[idx].amount = originalAmount;
+        transactions[idx].counterparty = '借出（' + receivableAcc.debtorName + '）';
+        transactions[idx].categoryRaw = '借出';
+        transactions[idx].categoryId = '';
+        transactions[idx].accountId = receivableAcc.id;
+        transactions[idx].note = transactions[idx].note || '借出资金';
+        transactions[idx].isMatched = true;
+
+        var walletTx = {
+            id: generateId(), date: t.date, dateRaw: t.dateRaw || formatDate(t.date),
+            type: 'expense', amount: originalAmount,
+            counterparty: '借出至' + receivableAcc.debtorName,
+            categoryRaw: '借出支出', categoryId: '',
+            accountId: walletAcc.id, note: t.note || '从钱包借出资金',
+            rawData: t.rawData || {}, isMatched: true
+        };
+        transactions.push(walletTx);
+    } else if (type === 'repay') {
+        var walletId = document.getElementById('process-repay-wallet').value;
+        var payableId = document.getElementById('process-repay-payable').value;
+        if (!walletId) { showToast('请选择从哪个钱包还款'); return; }
+        if (!payableId) { showToast('请选择应付账户'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+        if (!walletAcc || !payableAcc) { showToast('账户不存在'); return; }
+        if (walletAcc.balance < originalAmount) { showToast('钱包余额不足'); return; }
+        var debt = payableAcc.outstandingDebt || 0;
+        if (originalAmount > debt) { showToast('还款金额不能超过欠款 ¥' + debt.toFixed(2)); return; }
+
+        // 应付欠款：收入类型 → 欠款减少
+        transactions[idx].type = 'income';
+        transactions[idx].amount = originalAmount;
+        transactions[idx].counterparty = '偿还（' + payableAcc.creditorName + '）';
+        transactions[idx].categoryRaw = '偿还';
+        transactions[idx].categoryId = '';
+        transactions[idx].accountId = payableAcc.id;
+        transactions[idx].note = transactions[idx].note || '偿还欠款';
+        transactions[idx].isMatched = true;
+
+        var walletTx = {
+            id: generateId(), date: t.date, dateRaw: t.dateRaw || formatDate(t.date),
+            type: 'expense', amount: originalAmount,
+            counterparty: '偿还至' + payableAcc.creditorName,
+            categoryRaw: '偿还支出', categoryId: '',
+            accountId: walletAcc.id, note: t.note || '从钱包偿还欠款',
+            rawData: t.rawData || {}, isMatched: true
+        };
+        transactions.push(walletTx);
+    } else if (type === 'collect') {
+        var walletId = document.getElementById('process-collect-wallet').value;
+        var receivableId = document.getElementById('process-collect-receivable').value;
+        if (!walletId) { showToast('请选择收至哪个钱包'); return; }
+        if (!receivableId) { showToast('请选择应收账户'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+        if (!walletAcc || !receivableAcc) { showToast('账户不存在'); return; }
+        var receivable = receivableAcc.outstandingDebt || 0;
+        if (originalAmount > receivable) { showToast('收款金额不能超过应收 ¥' + receivable.toFixed(2)); return; }
+
+        transactions[idx].type = 'income';
+        transactions[idx].amount = originalAmount;
+        transactions[idx].counterparty = '收回（' + receivableAcc.debtorName + '）';
+        transactions[idx].categoryRaw = '收回';
+        transactions[idx].categoryId = '';
+        transactions[idx].accountId = receivableAcc.id;
+        transactions[idx].note = transactions[idx].note || '收回资金';
+        transactions[idx].isMatched = true;
+
+        var walletTx = {
+            id: generateId(), date: t.date, dateRaw: t.dateRaw || formatDate(t.date),
+            type: 'income', amount: originalAmount,
+            counterparty: '从' + receivableAcc.debtorName + '收回',
+            categoryRaw: '收回收入', categoryId: '',
+            accountId: walletAcc.id, note: t.note || '收回资金到钱包',
+            rawData: t.rawData || {}, isMatched: true
+        };
+        transactions.push(walletTx);
     } else {
         // 收入/支出类型
         if (!selectedProcessCategoryId) {
@@ -9281,18 +9579,15 @@ function saveTransaction() {
         transactions[idx].type = type;
         transactions[idx].isMatched = true;
 
-        // 学习用户的手动分类（智能分类引擎）
         if (transactions[idx].counterparty) {
             AppState.learnClassification(transactions[idx].counterparty, selectedProcessCategoryId, type);
         }
 
-        // 更新账户
         var accountId = document.getElementById('process-account').value;
         if (accountId) {
             transactions[idx].accountId = accountId;
         }
 
-        // 创建自动规则
         if (document.getElementById('create-rule').checked && transactions[idx].counterparty) {
             var rules = AppState.getRules();
             rules.push({
@@ -9367,6 +9662,16 @@ function showAddTransactionModal() {
         accounts.map(function(a) { return '<option value="' + a.id + '">' + a.name + '</option>'; }).join('');
     document.getElementById('add-to-account').innerHTML = '<option value="">选择转入账户...</option>' +
         accounts.map(function(a) { return '<option value="' + a.id + '">' + a.name + '</option>'; }).join('');
+
+    // 预填充新增类型选择器
+    populatePersonalWalletSelect('add-borrow-wallet', '');
+    populatePayableSelect('add-borrow-payable', '');
+    populatePersonalWalletSelect('add-lend-wallet', '');
+    populateReceivableSelect('add-lend-receivable', '');
+    populatePersonalWalletSelect('add-repay-wallet', '');
+    populatePayableSelect('add-repay-payable', '');
+    populatePersonalWalletSelect('add-collect-wallet', '');
+    populateReceivableSelect('add-collect-receivable', '');
 
     // 根据类型切换字段
     toggleAddTypeFields();
@@ -9522,12 +9827,56 @@ function toggleAddTypeFields() {
     var fromAccountGroup = document.getElementById('add-from-account-group');
     var toAccountGroup = document.getElementById('add-to-account-group');
 
+    // 隐藏所有新增类型字段
+    var addNewGroups = ['add-borrow-wallet-group','add-borrow-payable-group','add-lend-wallet-group','add-lend-receivable-group','add-repay-wallet-group','add-repay-payable-group','add-collect-wallet-group','add-collect-receivable-group'];
+    addNewGroups.forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+
     if (type === 'transfer') {
         counterpartyGroup.style.display = 'none';
         categoryGroup.style.display = 'none';
         accountGroup.style.display = 'none';
         fromAccountGroup.style.display = '';
         toAccountGroup.style.display = '';
+    } else if (type === 'borrow_in') {
+        counterpartyGroup.style.display = 'block';
+        categoryGroup.style.display = 'none';
+        accountGroup.style.display = 'none';
+        fromAccountGroup.style.display = 'none';
+        toAccountGroup.style.display = 'none';
+        var g1 = document.getElementById('add-borrow-wallet-group'); if (g1) g1.style.display = 'block';
+        var g2 = document.getElementById('add-borrow-payable-group'); if (g2) g2.style.display = 'block';
+        populatePersonalWalletSelect('add-borrow-wallet', '');
+        populatePayableSelect('add-borrow-payable', '');
+    } else if (type === 'lend_out') {
+        counterpartyGroup.style.display = 'block';
+        categoryGroup.style.display = 'none';
+        accountGroup.style.display = 'none';
+        fromAccountGroup.style.display = 'none';
+        toAccountGroup.style.display = 'none';
+        var g3 = document.getElementById('add-lend-wallet-group'); if (g3) g3.style.display = 'block';
+        var g4 = document.getElementById('add-lend-receivable-group'); if (g4) g4.style.display = 'block';
+        populatePersonalWalletSelect('add-lend-wallet', '');
+        populateReceivableSelect('add-lend-receivable', '');
+    } else if (type === 'repay') {
+        counterpartyGroup.style.display = 'block';
+        categoryGroup.style.display = 'none';
+        accountGroup.style.display = 'none';
+        fromAccountGroup.style.display = 'none';
+        toAccountGroup.style.display = 'none';
+        var g5 = document.getElementById('add-repay-wallet-group'); if (g5) g5.style.display = 'block';
+        var g6 = document.getElementById('add-repay-payable-group'); if (g6) g6.style.display = 'block';
+        populatePersonalWalletSelect('add-repay-wallet', '');
+        populatePayableSelect('add-repay-payable', '');
+    } else if (type === 'collect') {
+        counterpartyGroup.style.display = 'block';
+        categoryGroup.style.display = 'none';
+        accountGroup.style.display = 'none';
+        fromAccountGroup.style.display = 'none';
+        toAccountGroup.style.display = 'none';
+        var g7 = document.getElementById('add-collect-wallet-group'); if (g7) g7.style.display = 'block';
+        var g8 = document.getElementById('add-collect-receivable-group'); if (g8) g8.style.display = 'block';
+        populatePersonalWalletSelect('add-collect-wallet', '');
+        populateReceivableSelect('add-collect-receivable', '');
     } else {
         counterpartyGroup.style.display = '';
         categoryGroup.style.display = '';
@@ -9535,7 +9884,6 @@ function toggleAddTypeFields() {
         fromAccountGroup.style.display = 'none';
         toAccountGroup.style.display = 'none';
 
-        // 更新分类选项
         var categories = AppState.getCategories().filter(function(c) { return c.type === type; });
         var catOpts = '<option value="">选择分类...</option>' +
             categories.map(function(c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
@@ -9552,7 +9900,6 @@ function saveAddTransaction() {
         return;
     }
 
-    // 解析日期时间
     var dateVal = document.getElementById('add-date').value;
     var date = '';
     var time = '00:00:00';
@@ -9569,7 +9916,7 @@ function saveAddTransaction() {
     var tagsRaw = (document.getElementById('add-tags').value || '').trim();
     var tags = tagsRaw ? tagsRaw.split(/[,，]/).map(function(t) { return t.trim(); }).filter(function(t) { return t; }) : [];
 
-    var transaction;
+    var accounts = AppState.getAccounts();
 
     if (type === 'transfer') {
         var fromAccountId = document.getElementById('add-from-account').value;
@@ -9583,22 +9930,85 @@ function saveAddTransaction() {
             return;
         }
 
-        transaction = {
-            id: generateId(),
-            date: date,
-            time: time,
-            amount: amount,
-            type: 'transfer',
-            counterparty: '账户转账',
-            categoryId: 11,
-            categoryRaw: '账户互转',
-            accountId: fromAccountId,
-            fromAccountId: fromAccountId,
-            toAccountId: toAccountId,
-            note: note,
-            status: 'processed',
-            tags: tags
+        var transaction = {
+            id: generateId(), date: date, time: time, amount: amount, type: 'transfer',
+            counterparty: '账户转账', categoryId: '11', categoryRaw: '账户互转',
+            accountId: fromAccountId, fromAccountId: fromAccountId, toAccountId: toAccountId,
+            note: note, status: 'processed', tags: tags
         };
+        AppState.addTransaction(transaction);
+    } else if (type === 'borrow_in') {
+        var walletId = document.getElementById('add-borrow-wallet').value;
+        var payableId = document.getElementById('add-borrow-payable').value;
+        if (!walletId || !payableId) { showToast('请选择钱包和应付账户'); return; }
+        var counterparty = (document.getElementById('add-counterparty').value || '').trim();
+        if (!counterparty) { showToast('请输入商户/债权人'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+        if (!walletAcc || !payableAcc) { showToast('账户不存在'); return; }
+
+        var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
+            counterparty: '借入（' + payableAcc.creditorName + '）', categoryId: '', categoryRaw: '借入',
+            accountId: payableAcc.id, note: note || '借入资金', status: 'processed', tags: tags };
+        var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
+            counterparty: '从' + payableAcc.creditorName + '借入', categoryId: '', categoryRaw: '借款收入',
+            accountId: walletAcc.id, note: note || '借入资金到钱包', status: 'processed', tags: tags };
+        AppState.addTransaction(tx1);
+        AppState.addTransaction(tx2);
+    } else if (type === 'lend_out') {
+        var walletId = document.getElementById('add-lend-wallet').value;
+        var receivableId = document.getElementById('add-lend-receivable').value;
+        if (!walletId || !receivableId) { showToast('请选择钱包和应收账户'); return; }
+        var counterparty = (document.getElementById('add-counterparty').value || '').trim();
+        if (!counterparty) { showToast('请输入商户/债务人'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+        if (!walletAcc || !receivableAcc) { showToast('账户不存在'); return; }
+
+        var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
+            counterparty: '借出（' + receivableAcc.debtorName + '）', categoryId: '', categoryRaw: '借出',
+            accountId: receivableAcc.id, note: note || '借出资金', status: 'processed', tags: tags };
+        var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
+            counterparty: '借出至' + receivableAcc.debtorName, categoryId: '', categoryRaw: '借出支出',
+            accountId: walletAcc.id, note: note || '从钱包借出资金', status: 'processed', tags: tags };
+        AppState.addTransaction(tx1);
+        AppState.addTransaction(tx2);
+    } else if (type === 'repay') {
+        var walletId = document.getElementById('add-repay-wallet').value;
+        var payableId = document.getElementById('add-repay-payable').value;
+        if (!walletId || !payableId) { showToast('请选择钱包和应付账户'); return; }
+        var counterparty = (document.getElementById('add-counterparty').value || '').trim();
+        if (!counterparty) { showToast('请输入商户/债权人'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+        if (!walletAcc || !payableAcc) { showToast('账户不存在'); return; }
+
+        var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
+            counterparty: '偿还（' + payableAcc.creditorName + '）', categoryId: '', categoryRaw: '偿还',
+            accountId: payableAcc.id, note: note || '偿还欠款', status: 'processed', tags: tags };
+        var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
+            counterparty: '偿还至' + payableAcc.creditorName, categoryId: '', categoryRaw: '偿还支出',
+            accountId: walletAcc.id, note: note || '从钱包偿还欠款', status: 'processed', tags: tags };
+        AppState.addTransaction(tx1);
+        AppState.addTransaction(tx2);
+    } else if (type === 'collect') {
+        var walletId = document.getElementById('add-collect-wallet').value;
+        var receivableId = document.getElementById('add-collect-receivable').value;
+        if (!walletId || !receivableId) { showToast('请选择钱包和应收账户'); return; }
+        var counterparty = (document.getElementById('add-counterparty').value || '').trim();
+        if (!counterparty) { showToast('请输入商户/债务人'); return; }
+        var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+        var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+        if (!walletAcc || !receivableAcc) { showToast('账户不存在'); return; }
+
+        var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
+            counterparty: '收回（' + receivableAcc.debtorName + '）', categoryId: '', categoryRaw: '收回',
+            accountId: receivableAcc.id, note: note || '收回资金', status: 'processed', tags: tags };
+        var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
+            counterparty: '从' + receivableAcc.debtorName + '收回', categoryId: '', categoryRaw: '收回收入',
+            accountId: walletAcc.id, note: note || '收回资金到钱包', status: 'processed', tags: tags };
+        AppState.addTransaction(tx1);
+        AppState.addTransaction(tx2);
     } else {
         var counterparty = (document.getElementById('add-counterparty').value || '').trim();
         if (!counterparty) {
@@ -9612,27 +10022,14 @@ function saveAddTransaction() {
             return;
         }
 
-        // 更新账户余额 / 欠款（由 recalculate 统一计算）
-        var accounts2 = AppState.getAccounts();
-        AppState.saveAccounts(accounts2);
-
-        transaction = {
-            id: generateId(),
-            date: date,
-            time: time,
-            amount: amount,
-            type: type,
-            counterparty: counterparty,
-            categoryId: categoryId,
-            categoryRaw: '',
-            accountId: accountId,
-            note: note,
-            status: 'processed',
-            tags: tags
+        var transaction = {
+            id: generateId(), date: date, time: time, amount: amount, type: type,
+            counterparty: counterparty, categoryId: categoryId, categoryRaw: '',
+            accountId: accountId, note: note, status: 'processed', tags: tags
         };
+        AppState.addTransaction(transaction);
     }
 
-    AppState.addTransaction(transaction);
     closeModal('add-transaction-modal');
     refreshAllData();
     showToast('记账成功');
@@ -9714,6 +10111,21 @@ function showEditTransactionModal() {
         populateAccountSelect('edit-to-account', t.toAccountId);
     }
 
+    // 预先填充所有新增类型的账户选择器（绑定导入时的账户作为默认钱包）
+    var origAccountId = t.accountId || '';
+    var allAccounts = AppState.getAccounts();
+    // 直接使用导入时的账户作为钱包默认值（不限制分类）
+    var defaultWalletId = allAccounts.find(function(a) { return a.id === origAccountId; })
+        ? origAccountId
+        : '';
+    ['edit-borrow-wallet','edit-lend-wallet','edit-repay-wallet','edit-collect-wallet'].forEach(function(id) {
+        populatePersonalWalletSelect(id, defaultWalletId);
+    });
+    populatePayableSelect('edit-borrow-payable', '');
+    populatePayableSelect('edit-repay-payable', '');
+    populateReceivableSelect('edit-lend-receivable', '');
+    populateReceivableSelect('edit-collect-receivable', '');
+
     // 处理日期时间 - 转换为 datetime-local 格式
     if (t.date) {
         const d = new Date(t.date);
@@ -9749,15 +10161,61 @@ function toggleEditTypeFields() {
     const categoryGroup = document.getElementById('edit-category-group');
     const accountGroup = document.getElementById('edit-account-group');
 
+    // 隐藏所有新增类型字段
+    var editNewGroups = ['edit-borrow-wallet-group','edit-borrow-payable-group','edit-lend-wallet-group','edit-lend-receivable-group','edit-repay-wallet-group','edit-repay-payable-group','edit-collect-wallet-group','edit-collect-receivable-group'];
+    editNewGroups.forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+
     if (type === 'transfer') {
-        // 转账：显示转出/转入账户，隐藏商户和分类
         if (counterpartyGroup) counterpartyGroup.style.display = 'none';
         if (fromAccountGroup) fromAccountGroup.style.display = 'block';
         if (toAccountGroup) toAccountGroup.style.display = 'block';
         if (categoryGroup) categoryGroup.style.display = 'none';
         if (accountGroup) accountGroup.style.display = 'none';
+    } else if (type === 'borrow_in') {
+        if (counterpartyGroup) counterpartyGroup.style.display = 'none';
+        if (fromAccountGroup) fromAccountGroup.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (categoryGroup) categoryGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        var g1 = document.getElementById('edit-borrow-wallet-group'); if (g1) g1.style.display = 'block';
+        var g2 = document.getElementById('edit-borrow-payable-group'); if (g2) g2.style.display = 'block';
+        var bw = document.getElementById('edit-borrow-wallet');
+        populatePersonalWalletSelect('edit-borrow-wallet', bw && bw.value ? bw.value : '');
+        populatePayableSelect('edit-borrow-payable', '');
+    } else if (type === 'lend_out') {
+        if (counterpartyGroup) counterpartyGroup.style.display = 'none';
+        if (fromAccountGroup) fromAccountGroup.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (categoryGroup) categoryGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        var g3 = document.getElementById('edit-lend-wallet-group'); if (g3) g3.style.display = 'block';
+        var g4 = document.getElementById('edit-lend-receivable-group'); if (g4) g4.style.display = 'block';
+        var lw = document.getElementById('edit-lend-wallet');
+        populatePersonalWalletSelect('edit-lend-wallet', lw && lw.value ? lw.value : '');
+        populateReceivableSelect('edit-lend-receivable', '');
+    } else if (type === 'repay') {
+        if (counterpartyGroup) counterpartyGroup.style.display = 'none';
+        if (fromAccountGroup) fromAccountGroup.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (categoryGroup) categoryGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        var g5 = document.getElementById('edit-repay-wallet-group'); if (g5) g5.style.display = 'block';
+        var g6 = document.getElementById('edit-repay-payable-group'); if (g6) g6.style.display = 'block';
+        var rw = document.getElementById('edit-repay-wallet');
+        populatePersonalWalletSelect('edit-repay-wallet', rw && rw.value ? rw.value : '');
+        populatePayableSelect('edit-repay-payable', '');
+    } else if (type === 'collect') {
+        if (counterpartyGroup) counterpartyGroup.style.display = 'none';
+        if (fromAccountGroup) fromAccountGroup.style.display = 'none';
+        if (toAccountGroup) toAccountGroup.style.display = 'none';
+        if (categoryGroup) categoryGroup.style.display = 'none';
+        if (accountGroup) accountGroup.style.display = 'none';
+        var g7 = document.getElementById('edit-collect-wallet-group'); if (g7) g7.style.display = 'block';
+        var g8 = document.getElementById('edit-collect-receivable-group'); if (g8) g8.style.display = 'block';
+        var cw = document.getElementById('edit-collect-wallet');
+        populatePersonalWalletSelect('edit-collect-wallet', cw && cw.value ? cw.value : '');
+        populateReceivableSelect('edit-collect-receivable', '');
     } else {
-        // 收入/支出：显示商户、分类、账户，隐藏转账字段
         if (counterpartyGroup) counterpartyGroup.style.display = 'block';
         if (fromAccountGroup) fromAccountGroup.style.display = 'none';
         if (toAccountGroup) toAccountGroup.style.display = 'none';
@@ -9779,7 +10237,6 @@ function saveEditTransaction() {
     const dateValue = document.getElementById('edit-date').value;
     const note = document.getElementById('edit-note').value.trim();
 
-    // 处理日期
     let newDate = null;
     if (dateValue) {
         newDate = new Date(dateValue);
@@ -9794,9 +10251,8 @@ function saveEditTransaction() {
     if (idx === -1) return;
 
     var original = transactions[idx];
-    var updated = Object.assign({}, original);
+    var accounts = AppState.getAccounts();
 
-    // 根据类型构建更新数据
     if (type === 'transfer') {
         const fromAccountId = document.getElementById('edit-from-account').value;
         const toAccountId = document.getElementById('edit-to-account').value;
@@ -9810,16 +10266,124 @@ function saveEditTransaction() {
             return;
         }
 
-        // 余额由 refreshAllData → recalculateAllAccountBalances 统一重算
-        AppState.saveAccounts(AppState.getAccounts());
+        original.type = 'transfer';
+        original.amount = Math.abs(amount);
+        original.fromAccountId = fromAccountId;
+        original.toAccountId = toAccountId;
+        original.counterparty = '账户转账';
+        original.categoryId = '11';
+        original.accountId = fromAccountId;
+    } else if (type === 'borrow_in' || type === 'lend_out' || type === 'repay' || type === 'collect') {
+        if (amount <= 0) { showToast('金额无效'); return; }
 
-        updated.type = 'transfer';
-        updated.amount = Math.abs(amount);
-        updated.fromAccountId = fromAccountId;
-        updated.toAccountId = toAccountId;
-        updated.counterparty = '账户转账';
-        updated.categoryId = '11'; // 账户互转分类
-        updated.accountId = fromAccountId;
+        // 移除可能存在的旧配对记录（之前编辑时创建的钱包记录）
+        var pairedIds = [original._pairedWalletId, original._pairedWalletId2].filter(Boolean);
+        var toRemove = [];
+        transactions.forEach(function(t2, i2) {
+            if (i2 !== idx && (pairedIds.indexOf(t2.id) !== -1 || (t2._parentTxnId === original.id))) {
+                toRemove.push(i2);
+            }
+        });
+        toRemove.sort(function(a, b) { return b - a; });
+        toRemove.forEach(function(i2) { transactions.splice(i2, 1); });
+
+        if (type === 'borrow_in') {
+            var walletId = document.getElementById('edit-borrow-wallet').value;
+            var payableId = document.getElementById('edit-borrow-payable').value;
+            if (!walletId || !payableId) { showToast('请选择钱包和应付账户'); return; }
+            var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+            var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+            if (!walletAcc || !payableAcc) { showToast('账户不存在'); return; }
+
+            original.type = 'expense'; original.amount = amount;
+            original.counterparty = '借入（' + payableAcc.creditorName + '）';
+            original.categoryRaw = '借入'; original.categoryId = '';
+            original.accountId = payableAcc.id; original.note = note || '借入资金';
+
+            var walletTx = {
+                id: generateId(), date: original.date, dateRaw: original.dateRaw || formatDate(original.date),
+                type: 'income', amount: amount,
+                counterparty: '从' + payableAcc.creditorName + '借入',
+                categoryRaw: '借款收入', categoryId: '',
+                accountId: walletAcc.id, note: note || '借入资金到钱包',
+                rawData: original.rawData || {}, isMatched: true,
+                _parentTxnId: original.id
+            };
+            original._pairedWalletId = walletTx.id;
+            transactions.push(walletTx);
+        } else if (type === 'lend_out') {
+            var walletId = document.getElementById('edit-lend-wallet').value;
+            var receivableId = document.getElementById('edit-lend-receivable').value;
+            if (!walletId || !receivableId) { showToast('请选择钱包和应收账户'); return; }
+            var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+            var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+            if (!walletAcc || !receivableAcc) { showToast('账户不存在'); return; }
+
+            original.type = 'expense'; original.amount = amount;
+            original.counterparty = '借出（' + receivableAcc.debtorName + '）';
+            original.categoryRaw = '借出'; original.categoryId = '';
+            original.accountId = receivableAcc.id; original.note = note || '借出资金';
+
+            var walletTx = {
+                id: generateId(), date: original.date, dateRaw: original.dateRaw || formatDate(original.date),
+                type: 'expense', amount: amount,
+                counterparty: '借出至' + receivableAcc.debtorName,
+                categoryRaw: '借出支出', categoryId: '',
+                accountId: walletAcc.id, note: note || '从钱包借出资金',
+                rawData: original.rawData || {}, isMatched: true,
+                _parentTxnId: original.id
+            };
+            original._pairedWalletId = walletTx.id;
+            transactions.push(walletTx);
+        } else if (type === 'repay') {
+            var walletId = document.getElementById('edit-repay-wallet').value;
+            var payableId = document.getElementById('edit-repay-payable').value;
+            if (!walletId || !payableId) { showToast('请选择钱包和应付账户'); return; }
+            var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+            var payableAcc = accounts.find(function(a) { return a.id === payableId; });
+            if (!walletAcc || !payableAcc) { showToast('账户不存在'); return; }
+
+            original.type = 'income'; original.amount = amount;
+            original.counterparty = '偿还（' + payableAcc.creditorName + '）';
+            original.categoryRaw = '偿还'; original.categoryId = '';
+            original.accountId = payableAcc.id; original.note = note || '偿还欠款';
+
+            var walletTx = {
+                id: generateId(), date: original.date, dateRaw: original.dateRaw || formatDate(original.date),
+                type: 'expense', amount: amount,
+                counterparty: '偿还至' + payableAcc.creditorName,
+                categoryRaw: '偿还支出', categoryId: '',
+                accountId: walletAcc.id, note: note || '从钱包偿还欠款',
+                rawData: original.rawData || {}, isMatched: true,
+                _parentTxnId: original.id
+            };
+            original._pairedWalletId = walletTx.id;
+            transactions.push(walletTx);
+        } else if (type === 'collect') {
+            var walletId = document.getElementById('edit-collect-wallet').value;
+            var receivableId = document.getElementById('edit-collect-receivable').value;
+            if (!walletId || !receivableId) { showToast('请选择钱包和应收账户'); return; }
+            var walletAcc = accounts.find(function(a) { return a.id === walletId; });
+            var receivableAcc = accounts.find(function(a) { return a.id === receivableId; });
+            if (!walletAcc || !receivableAcc) { showToast('账户不存在'); return; }
+
+            original.type = 'income'; original.amount = amount;
+            original.counterparty = '收回（' + receivableAcc.debtorName + '）';
+            original.categoryRaw = '收回'; original.categoryId = '';
+            original.accountId = receivableAcc.id; original.note = note || '收回资金';
+
+            var walletTx = {
+                id: generateId(), date: original.date, dateRaw: original.dateRaw || formatDate(original.date),
+                type: 'income', amount: amount,
+                counterparty: '从' + receivableAcc.debtorName + '收回',
+                categoryRaw: '收回收入', categoryId: '',
+                accountId: walletAcc.id, note: note || '收回资金到钱包',
+                rawData: original.rawData || {}, isMatched: true,
+                _parentTxnId: original.id
+            };
+            original._pairedWalletId = walletTx.id;
+            transactions.push(walletTx);
+        }
     } else {
         const counterparty = document.getElementById('edit-counterparty').value.trim();
         if (!counterparty) {
@@ -9829,25 +10393,31 @@ function saveEditTransaction() {
         const categoryId = document.getElementById('edit-category').value;
         const accountId = document.getElementById('edit-account').value;
 
-        // 余额由 refreshAllData → recalculateAllAccountBalances 统一重算
-        AppState.saveAccounts(AppState.getAccounts());
+        // 移除可能存在的旧配对记录
+        var toRemove2 = [];
+        transactions.forEach(function(t2, i2) {
+            if (i2 !== idx && t2._parentTxnId === original.id) {
+                toRemove2.push(i2);
+            }
+        });
+        toRemove2.sort(function(a, b) { return b - a; });
+        toRemove2.forEach(function(i2) { transactions.splice(i2, 1); });
+        delete original._pairedWalletId;
 
-        updated.type = type;
-        updated.amount = type === 'income' ? Math.abs(amount) : -Math.abs(amount);
-        updated.counterparty = counterparty;
-        updated.categoryId = categoryId;
-        updated.accountId = accountId;
-        // 清除转账字段
-        delete updated.fromAccountId;
-        delete updated.toAccountId;
+        original.type = type;
+        original.amount = type === 'income' ? Math.abs(amount) : -Math.abs(amount);
+        original.counterparty = counterparty;
+        original.categoryId = categoryId;
+        original.accountId = accountId;
+        delete original.fromAccountId;
+        delete original.toAccountId;
     }
 
     if (newDate) {
-        updated.date = newDate.toISOString();
+        original.date = newDate.toISOString();
     }
-    updated.note = note;
+    original.note = note;
 
-    transactions[idx] = updated;
     AppState.saveTransactions(transactions);
     closeModal('edit-transaction-modal');
     AppState.selectedTransaction = null;
@@ -9869,6 +10439,53 @@ function populateAccountSelect(selectId, selectedId) {
     const accounts = AppState.getAccounts();
     select.innerHTML = '<option value="">选择账户...</option>' +
         accounts.map(a => `<option value="${a.id}" ${a.id === selectedId ? 'selected' : ''}>${a.name}</option>`).join('');
+}
+
+// 填充自有钱包账户选择器（显示所有账户，导入时勾选的账户会预选中）
+function populatePersonalWalletSelect(selectId, selectedId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const accounts = AppState.getAccounts();
+    select.innerHTML = '<option value="">选择钱包...</option>' +
+        accounts.map(function(a) { return '<option value="' + a.id + '"' + (a.id === selectedId ? ' selected' : '') + '>' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>'; }).join('');
+}
+
+// 填充应付账户选择器
+function populatePayableSelect(selectId, selectedId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const accounts = AppState.getAccounts().filter(function(a) { return a.accountCategory === 'payable'; });
+    select.innerHTML = '<option value="">选择应付账户...</option>' +
+        accounts.map(function(a) { return '<option value="' + a.id + '"' + (a.id === selectedId ? ' selected' : '') + '>' + a.name + '（' + a.creditorName + '）</option>'; }).join('');
+}
+
+// 填充应收账户选择器
+function populateReceivableSelect(selectId, selectedId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const accounts = AppState.getAccounts().filter(function(a) { return a.accountCategory === 'receivable'; });
+    select.innerHTML = '<option value="">选择应收账户...</option>' +
+        accounts.map(function(a) { return '<option value="' + a.id + '"' + (a.id === selectedId ? ' selected' : '') + '>' + a.name + '（' + a.debtorName + '）</option>'; }).join('');
+}
+
+// 根据交易对方自动匹配应付账户
+function autoMatchPayable(selectId) {
+    var transactions = AppState.getTransactions();
+    var t = transactions.find(function(tr) { return tr.id === processingTransactionId; });
+    if (!t || !t.counterparty) return;
+    var payables = AppState.getAccounts().filter(function(a) { return a.accountCategory === 'payable'; });
+    var matched = payables.find(function(a) { return a.creditorName && a.creditorName.indexOf(t.counterparty) !== -1 || t.counterparty.indexOf(a.creditorName) !== -1; });
+    if (matched) { document.getElementById(selectId).value = matched.id; }
+}
+
+// 根据交易对方自动匹配应收账户
+function autoMatchReceivable(selectId) {
+    var transactions = AppState.getTransactions();
+    var t = transactions.find(function(tr) { return tr.id === processingTransactionId; });
+    if (!t || !t.counterparty) return;
+    var receivables = AppState.getAccounts().filter(function(a) { return a.category === 'receivable'; });
+    var matched = receivables.find(function(a) { return a.debtorName && a.debtorName.indexOf(t.counterparty) !== -1 || t.counterparty.indexOf(a.debtorName) !== -1; });
+    if (matched) { document.getElementById(selectId).value = matched.id; }
 }
 
 function initAccountFilter() {
