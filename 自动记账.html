@@ -6105,11 +6105,11 @@ const AppState = {
     getTotalBalance() {
         const accounts = this.getAccounts();
         return accounts.reduce((sum, account) => {
-            if (account.accountCategory === 'personal') {
+            if (isPersonalAccount(account)) {
                 return sum + (account.balance || 0);
-            } else if (account.accountCategory === 'receivable') {
+            } else if (isReceivableAccount(account)) {
                 return sum + (account.outstandingDebt || 0);
-            } else if (account.accountCategory === 'payable') {
+            } else if (isPayableAccount(account)) {
                 return sum - (account.outstandingDebt || 0);
             }
             // 兼容旧的 credit 分类
@@ -6401,9 +6401,9 @@ function renderHome() {
 // 显示账户余额详情
 function showBalanceDetail() {
     const accounts = AppState.getAccounts();
-    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
-    var payableAccounts = accounts.filter(function(a) { return a.accountCategory === 'payable' || a.accountCategory === 'credit'; });
-    var receivableAccounts = accounts.filter(function(a) { return a.accountCategory === 'receivable'; });
+    var personalAccounts = accounts.filter(isPersonalAccount);
+    var payableAccounts = accounts.filter(isPayableAccount);
+    var receivableAccounts = accounts.filter(isReceivableAccount);
 
     var html = '';
 
@@ -8114,6 +8114,18 @@ function showBalanceDiagnosis() {
 }
 
 // 工具函数
+function isPersonalAccount(a) {
+    return a.accountCategory === 'personal' || !a.accountCategory;
+}
+
+function isPayableAccount(a) {
+    return a.accountCategory === 'payable' || a.accountCategory === 'credit';
+}
+
+function isReceivableAccount(a) {
+    return a.accountCategory === 'receivable';
+}
+
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
@@ -8162,8 +8174,8 @@ function renderAccountList() {
     const typeIcons = { alipay: 'fa-alipay', wechat: 'fa-weixin', bank: 'fa-credit-card', cash: 'fa-money-bill-wave', credit_card: 'fa-credit-card', credit_platform: 'fa-laptop', other: 'fa-wallet' };
     const typeNames = { alipay: '支付宝', wechat: '微信支付', bank: '银行卡', cash: '现金', credit_card: '信用卡', credit_platform: '信用平台', other: '其他' };
 
-    // 三组：自有钱包、应付欠款、应收欠款
-    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    // 三组：自有钱包、应付欠款、应收欠款（无 accountCategory 的旧账户默认归为自有钱包）
+    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal' || !a.accountCategory; });
     var payableAccounts = accounts.filter(function(a) { return a.accountCategory === 'payable' || a.accountCategory === 'credit'; });
     var receivableAccounts = accounts.filter(function(a) { return a.accountCategory === 'receivable'; });
 
@@ -8422,7 +8434,7 @@ function showRepaymentModal(creditAccountId) {
     document.getElementById('repayment-amount').placeholder = '不填则全额还款 ¥' + debt.toFixed(2);
 
     // 填充自有账户选项
-    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var personalAccounts = accounts.filter(isPersonalAccount);
     var opts = '<option value="">选择还款账户...</option>' +
         personalAccounts.map(function(a) {
             return '<option value="' + a.id + '">' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>';
@@ -8507,7 +8519,7 @@ function showBorrowModal(payableId, type) {
         '<div style="font-size:12px;color:var(--text-secondary);">当前欠款：<strong style="color:#E53935;">¥' + debt.toFixed(2) + '</strong></div>' +
         '</div>';
 
-    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var walletAccounts = accounts.filter(isPersonalAccount);
     document.getElementById('borrow-to-wallet').innerHTML =
         '<option value="">选择钱包...</option>' +
         walletAccounts.map(function(a) {
@@ -8571,7 +8583,7 @@ function showRepayPayableModal(payableId) {
     document.getElementById('repay-payable-amount').value = '';
     document.getElementById('repay-payable-amount').placeholder = '默认全额 ¥' + debt.toFixed(2);
 
-    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var walletAccounts = accounts.filter(isPersonalAccount);
     document.getElementById('repay-payable-from').innerHTML =
         '<option value="">选择钱包...</option>' +
         walletAccounts.map(function(a) {
@@ -8639,7 +8651,7 @@ function showLendModal(receivableId) {
         '<div style="font-size:12px;color:var(--text-secondary);">当前应收：<strong style="color:#FF9800;">¥' + receivable.toFixed(2) + '</strong></div>' +
         '</div>';
 
-    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var walletAccounts = accounts.filter(isPersonalAccount);
     document.getElementById('lend-from-wallet').innerHTML =
         '<option value="">选择钱包...</option>' +
         walletAccounts.map(function(a) {
@@ -8704,7 +8716,7 @@ function showCollectModal(receivableId) {
     document.getElementById('collect-amount').value = '';
     document.getElementById('collect-amount').placeholder = '默认全额 ¥' + receivable.toFixed(2);
 
-    var walletAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var walletAccounts = accounts.filter(isPersonalAccount);
     document.getElementById('collect-to-wallet').innerHTML =
         '<option value="">选择钱包...</option>' +
         walletAccounts.map(function(a) {
