@@ -2,7 +2,7 @@
 // 策略：Network First + Cache Fallback
 // 自动更新：skipWaiting + clients.claim
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = 'accounting-app-' + CACHE_VERSION;
 
 // 需要缓存的核心文件

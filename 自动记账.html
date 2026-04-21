@@ -424,7 +424,7 @@ body {
 }
 
 .transaction-list.full {
-    padding: 0 16px;
+    padding: 0 16px 90px; /* 底部留出导航栏空间 */
 }
 
 .transaction-item {
@@ -914,7 +914,15 @@ body {
 
 /* 待处理列表 */
 .pending-list {
-    padding: 0 16px;
+    padding: 0 16px 90px; /* 底部留出导航栏空间 */
+}
+
+/* 页面头部固定 */
+.page-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--card-bg);
 }
 
 .pending-item {
@@ -1210,7 +1218,19 @@ body {
 /* 全屏弹窗 */
 .modal-full .modal-content {
     max-height: 100vh;
+    height: 100vh;
     border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.modal-full .settings-sub-header {
+    flex-shrink: 0;
+}
+.modal-full .settings-sub-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* 表单样式 */
@@ -4426,7 +4446,7 @@ body {
                 </div>
 
                 <!-- 预算进度 -->
-                <div class="section-card">
+                <div class="section-card" style="margin-bottom: 90px;">
                     <div class="section-header">
                         <h3>预算进度</h3>
                         <button class="btn-text" onclick="showBudgetSettings()">管理</button>
