@@ -7192,14 +7192,27 @@ function getVisibleTransactionIds() {
     const searchQuery = document.getElementById('search-input')?.value.toLowerCase() || '';
     const typeFilter = document.getElementById('type-filter')?.value || 'all';
     const accountFilter = document.getElementById('account-filter')?.value || 'all';
+    const categoryFilter = document.getElementById('category-filter')?.value || 'all';
 
     let transactions = AppState.getTransactions();
+
+    // 应用日期筛选
+    if (AppState.transactionDateFilter && AppState.transactionDateFilter.start) {
+        var filterStart = AppState.transactionDateFilter.start;
+        var filterEnd = AppState.transactionDateFilter.end;
+        transactions = transactions.filter(function(t) {
+            var d = new Date(t.date);
+            var dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+            return dateStr >= filterStart && dateStr <= filterEnd;
+        });
+    }
 
     if (searchQuery) {
         transactions = transactions.filter(t =>
             (t.counterparty && t.counterparty.toLowerCase().includes(searchQuery)) ||
             (t.categoryRaw && t.categoryRaw.toLowerCase().includes(searchQuery)) ||
-            (t.note && t.note.toLowerCase().includes(searchQuery))
+            (t.note && t.note.toLowerCase().includes(searchQuery)) ||
+            (t.tags && t.tags.some(function(tag) { return tag.toLowerCase().includes(searchQuery); }))
         );
     }
 
@@ -7209,6 +7222,10 @@ function getVisibleTransactionIds() {
 
     if (accountFilter !== 'all') {
         transactions = transactions.filter(t => t.accountId === accountFilter || t.fromAccountId === accountFilter || t.toAccountId === accountFilter);
+    }
+
+    if (categoryFilter !== 'all') {
+        transactions = transactions.filter(t => t.categoryId === categoryFilter);
     }
 
     return transactions.map(t => t.id);
@@ -9575,12 +9592,13 @@ function saveTransaction() {
             showToast('请选择一个分类'); return;
         }
 
+        // 分类仅变更分类，保留原始收支类型和金额符号
         transactions[idx].categoryId = selectedProcessCategoryId;
-        transactions[idx].type = type;
         transactions[idx].isMatched = true;
 
         if (transactions[idx].counterparty) {
-            AppState.learnClassification(transactions[idx].counterparty, selectedProcessCategoryId, type);
+            var originalType = transactions[idx].type;
+            AppState.learnClassification(transactions[idx].counterparty, selectedProcessCategoryId, originalType);
         }
 
         var accountId = document.getElementById('process-account').value;
@@ -10405,7 +10423,8 @@ function saveEditTransaction() {
         delete original._pairedWalletId;
 
         original.type = type;
-        original.amount = type === 'income' ? Math.abs(amount) : -Math.abs(amount);
+        // 分类仅变更收支类目，保留原始金额正负符号
+        original.amount = original.amount >= 0 ? Math.abs(amount) : -Math.abs(amount);
         original.counterparty = counterparty;
         original.categoryId = categoryId;
         original.accountId = accountId;
