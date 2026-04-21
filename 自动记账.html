@@ -5250,8 +5250,8 @@ body {
                         <option value="credit_platform">信用平台</option>
                         <option value="other">其他</option>
                     </select>
+                    <p class="form-hint">决定账户图标和标签，不影响余额计算（余额由"账户分类"决定）</p>
                 </div>
-                <!-- 自有账户字段 -->
                 <div class="form-group" id="personal-balance-group">
                     <label class="form-label">初始余额</label>
                     <input type="number" class="form-input" id="account-balance" step="0.01" placeholder="0.00">
@@ -7275,10 +7275,37 @@ let previewData = {
 function showImportModal() {
     const accounts = AppState.getAccounts();
     const accountSelect = document.getElementById('import-account');
-    accountSelect.innerHTML = '<option value="">请选择账户...</option>';
-    accounts.forEach(a => {
-        accountSelect.innerHTML += `<option value="${a.id}">${a.name}</option>`;
-    });
+
+    // 按分类分组
+    var personalAccounts = accounts.filter(function(a) { return a.accountCategory === 'personal'; });
+    var payableAccounts = accounts.filter(function(a) { return a.accountCategory === 'payable' || a.accountCategory === 'credit'; });
+    var receivableAccounts = accounts.filter(function(a) { return a.accountCategory === 'receivable'; });
+
+    var html = '<option value="">请选择账户...</option>';
+
+    if (personalAccounts.length > 0) {
+        html += '<optgroup label="自有钱包">';
+        personalAccounts.forEach(function(a) {
+            html += '<option value="' + a.id + '">' + a.name + ' (¥' + (a.balance || 0).toFixed(2) + ')</option>';
+        });
+        html += '</optgroup>';
+    }
+    if (payableAccounts.length > 0) {
+        html += '<optgroup label="应付欠款">';
+        payableAccounts.forEach(function(a) {
+            html += '<option value="' + a.id + '">' + a.name + '（' + (a.creditorName || '') + '）</option>';
+        });
+        html += '</optgroup>';
+    }
+    if (receivableAccounts.length > 0) {
+        html += '<optgroup label="应收欠款">';
+        receivableAccounts.forEach(function(a) {
+            html += '<option value="' + a.id + '">' + a.name + '（' + (a.debtorName || '') + '）</option>';
+        });
+        html += '</optgroup>';
+    }
+
+    accountSelect.innerHTML = html;
     document.getElementById('import-modal').classList.add('active');
 }
 
@@ -8295,6 +8322,16 @@ function saveAccount() {
     if (!name) { showToast('请输入账户名称'); return; }
 
     var accounts = AppState.getAccounts();
+
+    // 检查同名账户（排除正在编辑的自身）
+    var duplicate = accounts.find(function(a) {
+        return a.name === name && a.id !== editingAccountId;
+    });
+    if (duplicate) {
+        showToast('账户名称已存在："' + name + '"，请勿重复添加');
+        return;
+    }
+
     var baseData = { name: name, type: type, accountCategory: category, color: color };
 
     if (category === 'payable') {
