@@ -424,7 +424,7 @@ body {
 }
 
 .transaction-list.full {
-    padding: 0 16px 90px; /* 底部留出导航栏空间 */
+    padding: 0 16px calc(80px + env(safe-area-inset-bottom, 0px)); /* 底部留出导航栏空间 */
 }
 
 .transaction-item {
@@ -914,7 +914,17 @@ body {
 
 /* 待处理列表 */
 .pending-list {
-    padding: 0 16px 90px; /* 底部留出导航栏空间 */
+    padding: 0 16px calc(80px + env(safe-area-inset-bottom, 0px)); /* 底部留出导航栏空间 */
+}
+
+/* 账单列表 */
+.transaction-list {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 首页内容区域底部留白 */
+.home-content {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 页面头部固定 */
@@ -989,9 +999,41 @@ body {
     color: var(--primary-color);
 }
 
+/* 待处理页面按钮 */
+.btn-process-sm {
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.btn-delete-sm {
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: rgba(244, 67, 54, 0.1);
+    color: var(--danger-color);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.btn-delete-sm:hover {
+    background: rgba(244, 67, 54, 0.2);
+}
+
+.btn-delete-sm:active {
+    transform: scale(0.95);
+}
+
 /* 设置列表 */
 .settings-list {
-    padding: 0;
+    padding: 0 0 calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
 .setting-item {
@@ -1217,7 +1259,8 @@ body {
 
 /* 全屏弹窗 */
 .modal-full .modal-content {
-    max-height: 100vh;
+    max-height: 100dvh;
+    height: 100dvh;
     height: 100vh;
     border-radius: 0;
     display: flex;
@@ -1231,6 +1274,7 @@ body {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 /* 表单样式 */
@@ -2817,6 +2861,21 @@ body {
         grid-template-columns: repeat(2, 1fr);
     }
 
+    /* 待处理页面移动端优化 */
+    .pending-item {
+        padding: 12px 10px;
+        gap: 8px;
+    }
+    .btn-process-sm {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+    .btn-delete-sm {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+
     /* 账户管理卡片移动端优化 */
     .account-manage-card {
         flex-wrap: wrap;
@@ -3796,7 +3855,10 @@ body {
             font-weight: 600;
         }
         .settings-sub-body {
-            padding: 16px 20px;
+            padding: 16px 20px 24px;
+        }
+        .account-manage-list {
+            padding-bottom: 20px;
         }
 
         /* ===== 账户管理优化 ===== */
@@ -6251,9 +6313,9 @@ const AppState = {
         return this.getMonthlyTransactions();
     },
 
-    // 获取待处理交易
+    // 获取待处理交易：排除已处理（isMatched）和无分类的交易
     getPendingTransactions() {
-        return this.getTransactions().filter(t => !t.categoryId);
+        return this.getTransactions().filter(t => !t.categoryId && !t.isMatched);
     },
 
     // 添加交易
@@ -10036,10 +10098,10 @@ function saveAddTransaction() {
 
         var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
             counterparty: '借入（' + payableAcc.creditorName + '）', categoryId: '', categoryRaw: '借入',
-            accountId: payableAcc.id, note: note || '借入资金', status: 'processed', tags: tags };
+            accountId: payableAcc.id, note: note || '借入资金', status: 'processed', tags: tags, isMatched: true };
         var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
             counterparty: '从' + payableAcc.creditorName + '借入', categoryId: '', categoryRaw: '借款收入',
-            accountId: walletAcc.id, note: note || '借入资金到钱包', status: 'processed', tags: tags };
+            accountId: walletAcc.id, note: note || '借入资金到钱包', status: 'processed', tags: tags, isMatched: true };
         AppState.addTransaction(tx1);
         AppState.addTransaction(tx2);
     } else if (type === 'lend_out') {
@@ -10054,10 +10116,10 @@ function saveAddTransaction() {
 
         var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
             counterparty: '借出（' + receivableAcc.debtorName + '）', categoryId: '', categoryRaw: '借出',
-            accountId: receivableAcc.id, note: note || '借出资金', status: 'processed', tags: tags };
+            accountId: receivableAcc.id, note: note || '借出资金', status: 'processed', tags: tags, isMatched: true };
         var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
             counterparty: '借出至' + receivableAcc.debtorName, categoryId: '', categoryRaw: '借出支出',
-            accountId: walletAcc.id, note: note || '从钱包借出资金', status: 'processed', tags: tags };
+            accountId: walletAcc.id, note: note || '从钱包借出资金', status: 'processed', tags: tags, isMatched: true };
         AppState.addTransaction(tx1);
         AppState.addTransaction(tx2);
     } else if (type === 'repay') {
@@ -10072,10 +10134,10 @@ function saveAddTransaction() {
 
         var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
             counterparty: '偿还（' + payableAcc.creditorName + '）', categoryId: '', categoryRaw: '偿还',
-            accountId: payableAcc.id, note: note || '偿还欠款', status: 'processed', tags: tags };
+            accountId: payableAcc.id, note: note || '偿还欠款', status: 'processed', tags: tags, isMatched: true };
         var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'expense',
             counterparty: '偿还至' + payableAcc.creditorName, categoryId: '', categoryRaw: '偿还支出',
-            accountId: walletAcc.id, note: note || '从钱包偿还欠款', status: 'processed', tags: tags };
+            accountId: walletAcc.id, note: note || '从钱包偿还欠款', status: 'processed', tags: tags, isMatched: true };
         AppState.addTransaction(tx1);
         AppState.addTransaction(tx2);
     } else if (type === 'collect') {
@@ -10090,10 +10152,10 @@ function saveAddTransaction() {
 
         var tx1 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
             counterparty: '收回（' + receivableAcc.debtorName + '）', categoryId: '', categoryRaw: '收回',
-            accountId: receivableAcc.id, note: note || '收回资金', status: 'processed', tags: tags };
+            accountId: receivableAcc.id, note: note || '收回资金', status: 'processed', tags: tags, isMatched: true };
         var tx2 = { id: generateId(), date: date, time: time, amount: amount, type: 'income',
             counterparty: '从' + receivableAcc.debtorName + '收回', categoryId: '', categoryRaw: '收回收入',
-            accountId: walletAcc.id, note: note || '收回资金到钱包', status: 'processed', tags: tags };
+            accountId: walletAcc.id, note: note || '收回资金到钱包', status: 'processed', tags: tags, isMatched: true };
         AppState.addTransaction(tx1);
         AppState.addTransaction(tx2);
     } else {
@@ -10685,10 +10747,23 @@ function renderPending() {
             <div class="pending-amount">
                 <span class="amount ${t.type}">${formatAmount(t.amount, t.type)}</span>
             </div>
-            <button class="btn-primary" onclick="event.stopPropagation(); showProcessModal('${t.id}')">处理</button>
+            <button class="btn-primary btn-process-sm" onclick="event.stopPropagation(); showProcessModal('${t.id}')">处理</button>
+            <button class="btn-danger btn-delete-sm" onclick="event.stopPropagation(); deletePendingTransaction('${t.id}', event)" title="删除">
+                <i class="fas fa-trash"></i>
+            </button>
         </div>
     `;
     }).join('');
+}
+
+// 删除待处理账单
+function deletePendingTransaction(id, event) {
+    if (event) event.stopPropagation();
+    showConfirm('确认删除', '确定要删除这条待处理账单吗？删除后无法恢复', function() {
+        AppState.deleteTransaction(id);
+        renderPending();
+        showToast('账单已删除');
+    });
 }
 
 // ===== 新建转账功能 =====
@@ -10974,6 +11049,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
+            // 判断是否为信用资金变动交易（借入/借出/还款/收款/偿还/收回）
+            function isCreditTransaction(t) {
+                var cr = t.categoryRaw || '';
+                var creditWords = ['借入','借出','还款','收款','偿还','收回','借款收入','借出支出','偿还支出','收回收入'];
+                for (var i = 0; i < creditWords.length; i++) {
+                    if (cr.indexOf(creditWords[i]) !== -1) return true;
+                }
+                return false;
+            }
+
             function aggregateByCategory(type) {
                 var allTx = AppState.getTransactions();
                 var filtered = [];
@@ -10985,6 +11070,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     for (var i = 0; i < allTx.length; i++) {
                         var t = allTx[i];
                         if (!t.categoryId && !t.categoryRaw) continue;
+                        if (isCreditTransaction(t)) continue;
                         if (t.type === type && t.date >= startStr && t.date <= endStr) {
                             filtered.push(t);
                         }
@@ -10996,6 +11082,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     for (var i = 0; i < allTx.length; i++) {
                         var t = allTx[i];
                         if (!t.categoryId && !t.categoryRaw) continue;
+                        if (isCreditTransaction(t)) continue;
                         if (t.type !== type) continue;
                         var d = new Date(t.date);
                         var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
@@ -11013,6 +11100,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     for (var i = 0; i < allTx.length; i++) {
                         var t = allTx[i];
                         if (!t.categoryId && !t.categoryRaw) continue;
+                        if (isCreditTransaction(t)) continue;
                         var date = new Date(t.date);
                         if (t.type === type && date.getFullYear() === targetYear && date.getMonth() === targetMonth) {
                             filtered.push(t);
