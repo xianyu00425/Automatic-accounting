@@ -6254,19 +6254,59 @@ const AppState = {
     },
 
     // 【新增功能 2】计算总账户余额：自有钱包 + 应收欠款 - 应付欠款
+    // 直接从交易计算，确保与账户管理面板一致
     getTotalBalance() {
         const accounts = this.getAccounts();
+        const transactions = this.getTransactions();
         return accounts.reduce((sum, account) => {
             if (isPersonalAccount(account)) {
-                return sum + (account.balance || 0);
+                // 自有钱包：余额 = 初始余额 + 收入 - 支出 + 转入 - 转出
+                if (account.initialBalance === undefined || account.initialBalance === null) {
+                    account.initialBalance = (account.balance || 0);
+                }
+                var initialBalance = account.initialBalance || 0;
+                var income = 0, expense = 0, transfersIn = 0, transfersOut = 0;
+                transactions.forEach(function(t) {
+                    var amt = Math.abs(parseFloat(t.amount)) || 0;
+                    if (t.type === 'transfer') {
+                        if (t.fromAccountId === account.id) transfersOut += amt;
+                        if (t.toAccountId === account.id) transfersIn += amt;
+                    } else if (t.accountId === account.id) {
+                        if (t.type === 'income') income += amt;
+                        else if (t.type === 'expense') expense += amt;
+                    }
+                });
+                return sum + (initialBalance + income - expense + transfersIn - transfersOut);
             } else if (isReceivableAccount(account)) {
-                return sum + (account.outstandingDebt || 0);
+                // 应收欠款：支出增加应收，收入减少应收
+                var receivable = 0;
+                transactions.forEach(function(t) {
+                    if (t.accountId === account.id) {
+                        var amt = Math.abs(parseFloat(t.amount)) || 0;
+                        if (t.type === 'expense') receivable += amt;
+                        else if (t.type === 'income') receivable = Math.max(0, receivable - amt);
+                    }
+                });
+                return sum + receivable;
             } else if (isPayableAccount(account)) {
-                return sum - (account.outstandingDebt || 0);
+                // 应付欠款：支出增加应付，收入减少应付
+                var debt = 0;
+                transactions.forEach(function(t) {
+                    if (t.accountId === account.id) {
+                        var amt = Math.abs(parseFloat(t.amount)) || 0;
+                        if (t.type === 'expense') debt += amt;
+                        else if (t.type === 'income') debt = Math.max(0, debt - amt);
+                    }
+                    if (t.type === 'transfer' && t.toAccountId === account.id) {
+                        debt = Math.max(0, debt - (Math.abs(parseFloat(t.amount)) || 0));
+                    }
+                });
+                return sum - debt;
             }
             // 兼容旧的 credit 分类
             if (account.accountCategory === 'credit') {
-                return sum - (account.outstandingDebt || 0);
+                var creditDebt = account.outstandingDebt || 0;
+                return sum - creditDebt;
             }
             return sum;
         }, 0);
@@ -6589,12 +6629,61 @@ function renderHome() {
     }
 }
 
-// 显示账户余额详情
+// 显示账户余额详情 — 所有余额从交易实时计算，确保与账户管理面板一致
 function showBalanceDetail() {
     const accounts = AppState.getAccounts();
+    const transactions = AppState.getTransactions();
     var personalAccounts = accounts.filter(isPersonalAccount);
     var payableAccounts = accounts.filter(isPayableAccount);
     var receivableAccounts = accounts.filter(isReceivableAccount);
+
+    // 计算每个账户的实际余额
+    var balanceMap = {};
+    accounts.forEach(function(a) {
+        if (isPersonalAccount(a)) {
+            if (a.initialBalance === undefined || a.initialBalance === null) {
+                a.initialBalance = (a.balance || 0);
+            }
+            var ib = a.initialBalance || 0;
+            var inc = 0, exp = 0, ti = 0, to = 0;
+            transactions.forEach(function(t) {
+                var amt = Math.abs(parseFloat(t.amount)) || 0;
+                if (t.type === 'transfer') {
+                    if (t.fromAccountId === a.id) to += amt;
+                    if (t.toAccountId === a.id) ti += amt;
+                } else if (t.accountId === a.id) {
+                    if (t.type === 'income') inc += amt;
+                    else if (t.type === 'expense') exp += amt;
+                }
+            });
+            balanceMap[a.id] = ib + inc - exp + ti - to;
+        } else if (isReceivableAccount(a)) {
+            var receivable = 0;
+            transactions.forEach(function(t) {
+                if (t.accountId === a.id) {
+                    var amt = Math.abs(parseFloat(t.amount)) || 0;
+                    if (t.type === 'expense') receivable += amt;
+                    else if (t.type === 'income') receivable = Math.max(0, receivable - amt);
+                }
+            });
+            balanceMap[a.id] = receivable;
+        } else if (isPayableAccount(a)) {
+            var debt = 0;
+            transactions.forEach(function(t) {
+                if (t.accountId === a.id) {
+                    var amt = Math.abs(parseFloat(t.amount)) || 0;
+                    if (t.type === 'expense') debt += amt;
+                    else if (t.type === 'income') debt = Math.max(0, debt - amt);
+                }
+                if (t.type === 'transfer' && t.toAccountId === a.id) {
+                    debt = Math.max(0, debt - (Math.abs(parseFloat(t.amount)) || 0));
+                }
+            });
+            balanceMap[a.id] = debt;
+        } else {
+            balanceMap[a.id] = a.outstandingDebt || 0;
+        }
+    });
 
     var html = '';
 
@@ -6603,15 +6692,16 @@ function showBalanceDetail() {
         html += '<div style="margin-bottom:16px;">';
         html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-wallet" style="margin-right:6px;color:#4CAF50;"></i>自有钱包</div>';
         personalAccounts.forEach(function(a) {
+            var bal = balanceMap[a.id] || 0;
             html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
             html += '<div style="display:flex;align-items:center;gap:8px;">';
             html += '<div style="width:32px;height:32px;border-radius:8px;background:' + a.color + ';display:flex;align-items:center;justify-content:center;color:white;font-size:14px;"><i class="fas ' + (a.icon || 'fa-wallet') + '"></i></div>';
             html += '<span style="font-size:14px;color:var(--text-primary);">' + a.name + '</span>';
             html += '</div>';
-            html += '<span style="font-size:15px;font-weight:600;color:var(--primary-color);">¥' + (a.balance || 0).toFixed(2) + '</span>';
+            html += '<span style="font-size:15px;font-weight:600;color:var(--primary-color);">¥' + bal.toFixed(2) + '</span>';
             html += '</div>';
         });
-        var personalTotal = personalAccounts.reduce(function(s, a) { return s + (a.balance || 0); }, 0);
+        var personalTotal = personalAccounts.reduce(function(s, a) { return s + (balanceMap[a.id] || 0); }, 0);
         html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;color:var(--text-secondary);border-top:1px dashed var(--border-color);margin-top:8px;">';
         html += '<span>小计</span><span>¥' + personalTotal.toFixed(2) + '</span>';
         html += '</div>';
@@ -6623,7 +6713,7 @@ function showBalanceDetail() {
         html += '<div style="margin-bottom:16px;">';
         html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-file-invoice-dollar" style="margin-right:6px;color:#E53935;"></i>应付欠款</div>';
         payableAccounts.forEach(function(a) {
-            var debt = a.outstandingDebt || 0;
+            var debt = balanceMap[a.id] || 0;
             var creditor = a.creditorName || '';
             var limitInfo = a.totalLimit ? ' | 额度 ¥' + a.totalLimit.toFixed(2) : '';
             html += '<div style="padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
@@ -6639,7 +6729,7 @@ function showBalanceDetail() {
             }
             html += '</div>';
         });
-        var payableTotal = payableAccounts.reduce(function(s, a) { return s + (a.outstandingDebt || 0); }, 0);
+        var payableTotal = payableAccounts.reduce(function(s, a) { return s + (balanceMap[a.id] || 0); }, 0);
         html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;color:var(--text-secondary);border-top:1px dashed var(--border-color);margin-top:8px;">';
         html += '<span>欠款合计</span><span style="color:#E53935;">-¥' + payableTotal.toFixed(2) + '</span>';
         html += '</div>';
@@ -6651,7 +6741,7 @@ function showBalanceDetail() {
         html += '<div style="margin-bottom:16px;">';
         html += '<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;"><i class="fas fa-hand-holding-usd" style="margin-right:6px;color:#FF9800;"></i>应收欠款</div>';
         receivableAccounts.forEach(function(a) {
-            var receivable = a.outstandingDebt || 0;
+            var receivable = balanceMap[a.id] || 0;
             var debtor = a.debtorName || '';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
             html += '<div style="display:flex;align-items:center;gap:8px;">';
@@ -6664,7 +6754,7 @@ function showBalanceDetail() {
                 html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;margin-left:44px;">债务人：' + debtor + '</div>';
             }
         });
-        var receivableTotal = receivableAccounts.reduce(function(s, a) { return s + (a.outstandingDebt || 0); }, 0);
+        var receivableTotal = receivableAccounts.reduce(function(s, a) { return s + (balanceMap[a.id] || 0); }, 0);
         html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;font-size:13px;color:var(--text-secondary);border-top:1px dashed var(--border-color);margin-top:8px;">';
         html += '<span>应收合计</span><span style="color:#FF9800;">+¥' + receivableTotal.toFixed(2) + '</span>';
         html += '</div>';
@@ -11019,6 +11109,7 @@ function executeTransfer(fromAccountId, toAccountId, amount, dateValue, note, fr
           initSampleData();
           migrateOldData();
           migrateCreditToPayable();
+          recalculateAllAccountBalances();
           initAccountFilter();
           initCategoryFilter();
           renderHome();
