@@ -1134,6 +1134,37 @@ body {
     box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
 }
 
+/* PWA 更新提示浮动按钮 */
+.update-fab {
+    position: fixed;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px) + 12px);
+    right: calc(50% - 220px);
+    z-index: 101;
+    background: linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 28px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(30,136,229,0.4);
+    cursor: pointer;
+    border: none;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    animation: fabBounce 0.5s ease;
+    transition: transform 0.2s;
+    max-width: 260px;
+}
+.update-fab:active {
+    transform: scale(0.95);
+}
+@keyframes fabBounce {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 .nav-item {
     display: flex;
     flex-direction: column;
@@ -4703,6 +4734,15 @@ body {
                         </div>
                         <i class="fas fa-chevron-right"></i>
                     </div>
+                    <div class="setting-item" onclick="checkForUpdate()">
+                        <div class="setting-icon"><i class="fas fa-sync-alt"></i></div>
+                        <div class="setting-info">
+                            <span class="setting-title">检查更新</span>
+                            <span class="setting-desc">获取最新版本的功能</span>
+                        </div>
+                        <span class="setting-badge" id="app-version-badge" style="background:#26C6DA;">v4</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
                 </div>
             </section>
 
@@ -4757,6 +4797,12 @@ body {
                 <span>设置</span>
             </button>
         </nav>
+
+        <!-- PWA 更新提示浮动按钮 -->
+        <button class="update-fab" id="update-fab" onclick="window.applyPWAUpdate()">
+            <i class="fas fa-sync-alt"></i>
+            <span>新版本可用，点击更新</span>
+        </button>
     </div>
 
     <!-- 账户余额详情弹窗 -->
@@ -11591,6 +11637,30 @@ document.addEventListener('DOMContentLoaded', function() {
             window.removeHomeDate = removeHomeDate;
             window.removeTransactionDate = removeTransactionDate;
 
+            // 检查更新 — 用于PWA桌面应用更新
+            function checkForUpdate() {
+                if (!('serviceWorker' in navigator)) {
+                    showToast('当前浏览器不支持离线更新');
+                    return;
+                }
+                navigator.serviceWorker.getRegistration().then(function(reg) {
+                    if (!reg) {
+                        // 未注册，直接刷新页面获取最新版本
+                        window.location.reload(true);
+                        return;
+                    }
+                    // 强制检查更新
+                    reg.update();
+                    // 等待一下再刷新
+                    setTimeout(function() {
+                        window.location.reload(true);
+                    }, 1500);
+                }).catch(function() {
+                    window.location.reload(true);
+                });
+            }
+            window.checkForUpdate = checkForUpdate;
+
             // 初始化
             function init() {
                 window._expenseAnalysisDebug.initCalled = true;
@@ -11607,6 +11677,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(init, 100);
             }
 
+            // 应用PWA更新
+            function applyPWAUpdate() {
+                navigator.serviceWorker.getRegistration().then(function(reg) {
+                    if (reg && reg.waiting) {
+                        // 有等待中的worker，通知其激活
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        setTimeout(function() { window.location.reload(true); }, 500);
+                    } else if (reg && reg.installing) {
+                        // 正在安装中，等待完成后刷新
+                        reg.installing.addEventListener('statechange', function() {
+                            if (reg.installing.state === 'installed') {
+                                window.location.reload(true);
+                            }
+                        });
+                    } else {
+                        // 没有更新，强制刷新
+                        window.location.reload(true);
+                    }
+                }).catch(function() {
+                    window.location.reload(true);
+                });
+            }
+            window.applyPWAUpdate = applyPWAUpdate;
+
             // PWA Service Worker 注册
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
@@ -11617,10 +11711,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             var newWorker = reg.installing;
                             newWorker.addEventListener('statechange', function() {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    showToast('新版本已就绪，刷新页面以更新');
+                                    // 显示浮动更新按钮
+                                    var fab = document.getElementById('update-fab');
+                                    if (fab) fab.style.display = 'flex';
+                                    showToast('新版本已就绪，点击右下角按钮更新');
                                 }
                             });
                         });
+                        // 检查是否有等待激活的更新
+                        if (reg.waiting) {
+                            var fab = document.getElementById('update-fab');
+                            if (fab) fab.style.display = 'flex';
+                        }
                     }).catch(function(err) {
                         console.log('[PWA] Service Worker 注册跳过:', err);
                     });
