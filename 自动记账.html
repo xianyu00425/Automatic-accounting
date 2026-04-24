@@ -2483,6 +2483,20 @@ body {
     gap: 10px;
     padding: 12px;
     background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.account-manage-card-clickable {
+    cursor: pointer;
+}
+
+.account-manage-card-clickable:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow);
+    border-color: var(--primary-color);
+}
     border-radius: 12px;
     box-shadow: var(--shadow);
     transition: all 0.2s;
@@ -6726,7 +6740,7 @@ function showBalanceDetail() {
             var debt = balanceMap[a.id] || 0;
             var creditor = a.creditorName || '';
             var limitInfo = a.totalLimit ? ' | 额度 ¥' + a.totalLimit.toFixed(2) : '';
-            html += '<div style="padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
+            html += '<div style="padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;cursor:pointer;" onclick="viewAccountBills(\'' + a.id + '\')">';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
             html += '<div style="display:flex;align-items:center;gap:8px;">';
             html += '<div style="width:32px;height:32px;border-radius:8px;background:' + a.color + ';display:flex;align-items:center;justify-content:center;color:white;font-size:14px;"><i class="fas ' + (a.icon || 'fa-file-invoice-dollar') + '"></i></div>';
@@ -6753,7 +6767,7 @@ function showBalanceDetail() {
         receivableAccounts.forEach(function(a) {
             var receivable = balanceMap[a.id] || 0;
             var debtor = a.debtorName || '';
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-color);border-radius:10px;margin-bottom:6px;cursor:pointer;" onclick="viewAccountBills(\'' + a.id + '\')">';
             html += '<div style="display:flex;align-items:center;gap:8px;">';
             html += '<div style="width:32px;height:32px;border-radius:8px;background:' + a.color + ';display:flex;align-items:center;justify-content:center;color:white;font-size:14px;"><i class="fas ' + (a.icon || 'fa-hand-holding-usd') + '"></i></div>';
             html += '<span style="font-size:14px;color:var(--text-primary);">' + a.name + '</span>';
@@ -6785,6 +6799,24 @@ function showBalanceDetail() {
     document.getElementById('balance-detail-body').innerHTML = html;
     document.getElementById('balance-detail-modal').classList.add('active');
 }
+
+// 查看指定账户的账单详情 — 从账户管理或余额详情弹窗跳转
+function viewAccountBills(accountId) {
+    // 关闭余额详情弹窗（如果打开）
+    closeModal('balance-detail-modal');
+    // 切换到账单tab
+    switchTab('transactions');
+    // 设置账户筛选器
+    var accountSelect = document.getElementById('account-filter');
+    if (accountSelect) {
+        accountSelect.value = accountId;
+    }
+    // 刷新列表
+    renderTransactions();
+    // 滚动到顶部
+    window.scrollTo(0, 0);
+}
+window.viewAccountBills = viewAccountBills;
 
 // 渲染预算 - 根据首页当前选择月份/日期范围计算
 function renderBudgets() {
@@ -8515,7 +8547,7 @@ function renderAccountList() {
             var typeName = typeNames[a.type] || '';
             var debt = a.outstandingDebt || 0;
             var creditor = a.creditorName || '';
-            html += '<div class="account-manage-card" style="--card-color:' + a.color + '">' +
+            html += '<div class="account-manage-card account-manage-card-clickable" style="--card-color:' + a.color + '" onclick="viewAccountBills(\'' + a.id + '\')">' +
                 '<div class="account-manage-card-icon" style="background:' + a.color + '">' +
                     '<i class="fas ' + icon + '"></i>' +
                 '</div>' +
@@ -8545,7 +8577,7 @@ function renderAccountList() {
             var typeName = typeNames[a.type] || '';
             var receivable = a.outstandingDebt || 0;
             var debtor = a.debtorName || '';
-            html += '<div class="account-manage-card" style="--card-color:' + a.color + '">' +
+            html += '<div class="account-manage-card account-manage-card-clickable" style="--card-color:' + a.color + '" onclick="viewAccountBills(\'' + a.id + '\')">' +
                 '<div class="account-manage-card-icon" style="background:' + a.color + '">' +
                     '<i class="fas ' + icon + '"></i>' +
                 '</div>' +
