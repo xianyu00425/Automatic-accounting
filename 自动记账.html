@@ -932,22 +932,22 @@ body {
 
 /* 待处理列表 */
 .pending-list {
-    padding: 0 16px calc(100px + env(safe-area-inset-bottom, 0px)); /* 底部留出导航栏空间 */
+    padding: 0 16px calc(220px + env(safe-area-inset-bottom, 0px)); /* 底部留出导航栏空间 */
 }
 
 /* 账单列表 */
 .transaction-list {
-    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 首页内容区域底部留白 */
 .home-content {
-    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 页面底部通用留白 — 防止内容被底部导航遮挡 */
 .page {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(200px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 页面头部固定 */
@@ -11750,18 +11750,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast('当前浏览器不支持离线更新');
                     return;
                 }
+                // 强制清除所有缓存 + 取消Service Worker + 硬刷新
                 navigator.serviceWorker.getRegistration().then(function(reg) {
-                    if (!reg) {
-                        // 未注册，直接刷新页面获取最新版本
-                        window.location.reload(true);
-                        return;
+                    if (reg) {
+                        // 发送消息给SW清除所有缓存
+                        if (reg.active) {
+                            reg.active.postMessage({ type: 'CLEAR_ALL_CACHE' });
+                        }
+                        // 注销Service Worker
+                        return reg.unregister();
                     }
-                    // 强制检查更新
-                    reg.update();
-                    // 等待一下再刷新
+                }).then(function() {
+                    // 清除Cache Storage中所有缓存
+                    if ('caches' in window) {
+                        return caches.keys().then(function(names) {
+                            return Promise.all(names.map(function(name) {
+                                return caches.delete(name);
+                            }));
+                        });
+                    }
+                }).then(function() {
+                    showToast('缓存已清除，正在重新加载...');
+                    // 硬刷新（绕过浏览器缓存）
                     setTimeout(function() {
-                        window.location.reload(true);
-                    }, 1500);
+                        window.location.href = window.location.pathname + '?_=' + Date.now();
+                    }, 500);
                 }).catch(function() {
                     window.location.reload(true);
                 });
