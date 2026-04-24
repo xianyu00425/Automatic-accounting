@@ -932,16 +932,21 @@ body {
 
 /* 待处理列表 */
 .pending-list {
-    padding: 0 16px calc(80px + env(safe-area-inset-bottom, 0px)); /* 底部留出导航栏空间 */
+    padding: 0 16px calc(100px + env(safe-area-inset-bottom, 0px)); /* 底部留出导航栏空间 */
 }
 
 /* 账单列表 */
 .transaction-list {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 首页内容区域底部留白 */
 .home-content {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 页面底部通用留白 — 防止内容被底部导航遮挡 */
+.page {
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -1051,7 +1056,7 @@ body {
 
 /* 设置列表 */
 .settings-list {
-    padding: 0 0 calc(80px + env(safe-area-inset-bottom, 0px));
+    padding: 0 0 calc(100px + env(safe-area-inset-bottom, 0px));
 }
 
 .setting-item {
@@ -4527,7 +4532,7 @@ body {
                 </div>
 
                 <!-- 预算进度 -->
-                <div class="section-card" style="margin-bottom: 90px;">
+                <div class="section-card" style="margin-bottom: calc(100px + env(safe-area-inset-bottom, 0px));">
                     <div class="section-header">
                         <h3>预算进度</h3>
                         <button class="btn-text" onclick="showBudgetSettings()">管理</button>
