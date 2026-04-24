@@ -240,6 +240,21 @@ body {
     box-shadow: var(--shadow-lg);
 }
 
+.stat-card-clickable {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    position: relative;
+}
+
+.stat-card-clickable:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-card-clickable:active {
+    transform: scale(0.97);
+}
+
 .stat-card.income .stat-icon {
     background: var(--income-bg);
     color: var(--income-color);
@@ -3039,6 +3054,7 @@ body {
         .stat-card.expense .stat-amount { color: var(--expense-color); }
         .stat-card.balance .stat-amount { color: #4FC3F7; }
         .stat-card.total-balance .stat-amount { color: var(--primary-color); }
+        .stat-card-clickable:active { transform: scale(0.96); }
 
         /* 费用分析区域 */
         .expense-analysis-section {
@@ -4434,21 +4450,21 @@ body {
 
                 <!-- 收支卡片 -->
                 <div class="stats-cards">
-                    <div class="stat-card income">
+                    <div class="stat-card income stat-card-clickable" onclick="viewMonthlyDetail('income')" style="cursor:pointer;">
                         <div class="stat-icon">
                             <i class="fas fa-arrow-down"></i>
                         </div>
                         <div class="stat-info">
-                            <span class="stat-label">本月收入</span>
+                            <span class="stat-label">本月收入 <i class="fas fa-chevron-right" style="font-size:11px;opacity:0.6;margin-left:4px;"></i></span>
                             <span class="stat-amount" id="month-income">+¥0.00</span>
                         </div>
                     </div>
-                    <div class="stat-card expense">
+                    <div class="stat-card expense stat-card-clickable" onclick="viewMonthlyDetail('expense')" style="cursor:pointer;">
                         <div class="stat-icon">
                             <i class="fas fa-arrow-up"></i>
                         </div>
                         <div class="stat-info">
-                            <span class="stat-label">本月支出</span>
+                            <span class="stat-label">本月支出 <i class="fas fa-chevron-right" style="font-size:11px;opacity:0.6;margin-left:4px;"></i></span>
                             <span class="stat-amount" id="month-expense">-¥0.00</span>
                         </div>
                     </div>
@@ -6205,9 +6221,10 @@ const AppState = {
         }, 0);
     },
 
-    // 【新增功能 3】获取指定账户的交易统计 - V9支持转账
+    // 【新增功能 3】获取指定账户的交易统计 - V9支持转账，与recalculateAllAccountBalances逻辑一致
     getAccountStats(accountId) {
         const transactions = this.getTransactions();
+        const account = this.getAccount(accountId);
 
         // 包括普通交易和转账交易（转出或转入）
         const accountTransactions = transactions.filter(function(t) {
@@ -6222,10 +6239,20 @@ const AppState = {
             .filter(function(t) { return t.type === 'expense'; })
             .reduce(function(sum, t) { return sum + Math.abs(t.amount); }, 0);
 
+        // 计算转入转出
+        var transferIn = 0, transferOut = 0;
+        accountTransactions.filter(function(t) { return t.type === 'transfer'; }).forEach(function(t) {
+            if (t.fromAccountId === accountId) transferOut += Math.abs(t.amount);
+            if (t.toAccountId === accountId) transferIn += Math.abs(t.amount);
+        });
+
+        // 结余 = 初始余额 + 收入 - 支出 + 转入 - 转出（与账户管理余额一致）
+        var initialBalance = account ? (account.initialBalance || 0) : 0;
+
         return {
             income,
             expense,
-            balance: income - expense,
+            balance: initialBalance + income - expense + transferIn - transferOut,
             count: accountTransactions.length
         };
     },
@@ -6400,6 +6427,34 @@ function switchTab(tab) {
     if (tab !== 'transactions') {
         AppState.billCategoryFilter = null;
     }
+}
+
+// 点击首页收支统计卡片，跳转到账单列表并筛选当月对应类型的账单
+function viewMonthlyDetail(type) {
+    switchTab('transactions');
+
+    // 设置类型筛选
+    var typeSelect = document.getElementById('type-filter');
+    if (typeSelect) typeSelect.value = type;
+
+    // 重置其他筛选
+    var accountSelect = document.getElementById('account-filter');
+    if (accountSelect) accountSelect.value = 'all';
+    var categorySelect = document.getElementById('category-filter');
+    if (categorySelect) categorySelect.value = 'all';
+    var searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.value = '';
+    AppState.transactionDateFilter = null;
+
+    // 筛选当前月份
+    var year = AppState.currentMonth.getFullYear();
+    var month = AppState.currentMonth.getMonth();
+    var startStr = year + '-' + String(month + 1).padStart(2, '0') + '-01';
+    var endMonth = new Date(year, month + 1, 0);
+    var endStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(endMonth.getDate()).padStart(2, '0');
+    AppState.transactionDateFilter = { start: startStr, end: endStr };
+
+    renderTransactions();
 }
 
 function updateSettingBadges() {
@@ -6947,8 +7002,13 @@ function showAccountSummaryFiltered(filteredTransactions, accountId) {
             }
         }
     }
-    // 结余 = 收入 - 支出 + 转入 - 转出
-    var balance = income - expense + transferIn - transferOut;
+
+    // 获取账户初始余额（与 recalculateAllAccountBalances 逻辑一致）
+    var account = accountId ? AppState.getAccount(accountId) : null;
+    var initialBalance = account ? (account.initialBalance || 0) : 0;
+
+    // 结余 = 初始余额 + 收入 - 支出 + 转入 - 转出
+    var balance = initialBalance + income - expense + transferIn - transferOut;
 
     var el = function(id) { var e = document.getElementById(id); return e ? e : { textContent: '' }; };
     el('account-income').textContent = formatAmount(income, 'income');
