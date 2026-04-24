@@ -1,31 +1,20 @@
 // 自动记账 PWA Service Worker
-// 策略：Network First + Cache Fallback
-// 自动更新：skipWaiting + clients.claim
+// 策略：HTML 文件每次加载都从网络获取（确保用户看到最新版本）
+// 静态资源（图标等）使用缓存
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = 'accounting-app-' + CACHE_VERSION;
 
-// 需要缓存的核心文件
-const CORE_ASSETS = [
-  './',
-  './自动记账.html',
-  './manifest.json'
+// 只缓存静态资源，不缓存 HTML 主文件
+const STATIC_ASSETS = [
 ];
 
-// 安装：预缓存核心文件
+// 安装：不预缓存任何文件
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] 预缓存核心文件');
-      return cache.addAll(CORE_ASSETS);
-    }).then(() => {
-      // 跳过等待，立即激活
-      return self.skipWaiting();
-    })
-  );
+  self.skipWaiting();
 });
 
-// 激活：清理旧缓存
+// 激活：清理所有旧缓存
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -38,44 +27,57 @@ self.addEventListener('activate', (event) => {
           })
       );
     }).then(() => {
-      // 立即接管所有页面
-      return self.clients.claim();
+      // 清除所有浏览器缓存的 HTML 文件
+      return clients.claim();
     })
   );
 });
 
-// 拦截请求：Network First + Cache Fallback
+// 拦截请求：HTML 走网络，静态资源走缓存
 self.addEventListener('fetch', (event) => {
-  // 只处理 GET 请求和同域请求
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // HTML 文件和 API 请求：Network First，不使用缓存
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('/') || url.pathname.includes('api')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // JS/CSS/图片等静态资源：Cache First
   event.respondWith(
-    // 优先尝试从网络获取
-    fetch(event.request)
-      .then((response) => {
-        // 网络成功，更新缓存
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
         if (response && response.status === 200) {
-          const responseClone = response.clone();
+          const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
+            cache.put(event.request, clone);
           });
         }
         return response;
-      })
-      .catch(() => {
-        // 网络失败，使用缓存
-        return caches.match(event.request);
-      })
+      });
+    })
   );
 });
 
-// 监听页面消息，支持手动触发更新
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
   if (event.data && event.data.type === 'CHECK_UPDATE') {
-    // 触发更新检查
     self.registration.update();
+  }
+  // 强制清除所有缓存并重新加载
+  if (event.data && event.data.type === 'CLEAR_ALL_CACHE') {
+    caches.keys().then((names) => {
+      names.forEach((name) => caches.delete(name));
+    });
+    clients.matchAll().then((cs) => {
+      cs.forEach((client) => client.navigate(client.url));
+    });
   }
 });

@@ -6312,7 +6312,7 @@ const AppState = {
         }, 0);
     },
 
-    // 【新增功能 3】获取指定账户的交易统计 - V9支持转账，与recalculateAllAccountBalances逻辑一致
+    // 【新增功能 3】获取指定账户的交易统计 — 区分账户类型使用不同公式
     getAccountStats(accountId) {
         const transactions = this.getTransactions();
         const account = this.getAccount(accountId);
@@ -6337,8 +6337,18 @@ const AppState = {
             if (t.toAccountId === accountId) transferIn += Math.abs(t.amount);
         });
 
-        // 结余 = 初始余额 + 收入 - 支出 + 转入 - 转出（与账户管理余额一致）
-        var initialBalance = account ? (account.initialBalance || 0) : 0;
+        var balance;
+        if (account && account.accountCategory === 'receivable') {
+            // 应收欠款：支出增加应收，收入减少应收
+            balance = expense - income;
+        } else if (account && (account.accountCategory === 'payable' || account.accountCategory === 'credit')) {
+            // 应付欠款：支出增加应付，收入减少应付（含转账还款）
+            balance = expense - income - transferIn;
+        } else {
+            // 自有钱包：初始余额 + 收入 - 支出 + 转入 - 转出
+            var initialBalance = account ? (account.initialBalance || 0) : 0;
+            balance = initialBalance + income - expense + transferIn - transferOut;
+        }
 
         return {
             income,
@@ -7123,33 +7133,39 @@ function hideAccountSummary() {
     document.getElementById('account-stats-panel').style.display = 'none';
 }
 
-// 【新增】显示筛选后的账户汇总
+// 【新增】显示筛选后的账户汇总 — 区分账户类型使用不同公式
 function showAccountSummaryFiltered(filteredTransactions, accountId) {
     var panel = document.getElementById('account-stats-panel');
     if (panel) panel.style.display = 'flex';
 
     var income = 0, expense = 0, transferIn = 0, transferOut = 0, count = 0;
+    var account = accountId ? AppState.getAccount(accountId) : null;
+    var isReceivable = account && account.accountCategory === 'receivable';
+    var isPayable = account && (account.accountCategory === 'payable' || account.accountCategory === 'credit');
+
     for (var i = 0; i < filteredTransactions.length; i++) {
         var t = filteredTransactions[i];
         count++;
         if (t.type === 'income') income += Math.abs(t.amount);
         else if (t.type === 'expense') expense += Math.abs(t.amount);
         else if (t.type === 'transfer') {
-            if (t.fromAccountId === accountId) {
-                transferOut += Math.abs(t.amount);
-            }
-            if (t.toAccountId === accountId) {
-                transferIn += Math.abs(t.amount);
-            }
+            if (t.fromAccountId === accountId) transferOut += Math.abs(t.amount);
+            if (t.toAccountId === accountId) transferIn += Math.abs(t.amount);
         }
     }
 
-    // 获取账户初始余额（与 recalculateAllAccountBalances 逻辑一致）
-    var account = accountId ? AppState.getAccount(accountId) : null;
-    var initialBalance = account ? (account.initialBalance || 0) : 0;
-
-    // 结余 = 初始余额 + 收入 - 支出 + 转入 - 转出
-    var balance = initialBalance + income - expense + transferIn - transferOut;
+    var balance;
+    if (isReceivable) {
+        // 应收欠款：支出增加应收，收入减少应收
+        balance = expense - income;
+    } else if (isPayable) {
+        // 应付欠款：支出增加应付，收入减少应付
+        balance = expense - income;
+    } else {
+        // 自有钱包：初始余额 + 收入 - 支出 + 转入 - 转出
+        var initialBalance = account ? (account.initialBalance || 0) : 0;
+        balance = initialBalance + income - expense + transferIn - transferOut;
+    }
 
     var el = function(id) { var e = document.getElementById(id); return e ? e : { textContent: '' }; };
     el('account-income').textContent = formatAmount(income, 'income');
