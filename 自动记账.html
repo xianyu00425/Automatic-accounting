@@ -6292,30 +6292,30 @@ const AppState = {
                 });
                 return sum + (initialBalance + income - expense + transfersIn - transfersOut);
             } else if (isReceivableAccount(account)) {
-                // 应收欠款：支出增加应收，收入减少应收
-                var receivable = 0;
+                // 应收欠款：支出(借出)增加应收，收入(收回)减少应收
+                var exp = 0, inc = 0;
                 transactions.forEach(function(t) {
                     if (t.accountId === account.id) {
                         var amt = Math.abs(parseFloat(t.amount)) || 0;
-                        if (t.type === 'expense') receivable += amt;
-                        else if (t.type === 'income') receivable = Math.max(0, receivable - amt);
+                        if (t.type === 'expense') exp += amt;
+                        else if (t.type === 'income') inc += amt;
                     }
                 });
-                return sum + receivable;
+                return sum + (exp - inc);
             } else if (isPayableAccount(account)) {
-                // 应付欠款：支出增加应付，收入减少应付
-                var debt = 0;
+                // 应付欠款：支出(借入)增加应付，收入(偿还)减少应付，转入(还款到应付)也减少应付
+                var exp = 0, inc = 0, tTo = 0;
                 transactions.forEach(function(t) {
                     if (t.accountId === account.id) {
                         var amt = Math.abs(parseFloat(t.amount)) || 0;
-                        if (t.type === 'expense') debt += amt;
-                        else if (t.type === 'income') debt = Math.max(0, debt - amt);
+                        if (t.type === 'expense') exp += amt;
+                        else if (t.type === 'income') inc += amt;
                     }
                     if (t.type === 'transfer' && t.toAccountId === account.id) {
-                        debt = Math.max(0, debt - (Math.abs(parseFloat(t.amount)) || 0));
+                        tTo += Math.abs(parseFloat(t.amount)) || 0;
                     }
                 });
-                return sum - debt;
+                return sum - (exp - inc - tTo);
             }
             // 兼容旧的 credit 分类
             if (account.accountCategory === 'credit') {
@@ -6682,28 +6682,28 @@ function showBalanceDetail() {
             });
             balanceMap[a.id] = ib + inc - exp + ti - to;
         } else if (isReceivableAccount(a)) {
-            var receivable = 0;
+            var exp = 0, inc = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === a.id) {
                     var amt = Math.abs(parseFloat(t.amount)) || 0;
-                    if (t.type === 'expense') receivable += amt;
-                    else if (t.type === 'income') receivable = Math.max(0, receivable - amt);
+                    if (t.type === 'expense') exp += amt;
+                    else if (t.type === 'income') inc += amt;
                 }
             });
-            balanceMap[a.id] = receivable;
+            balanceMap[a.id] = exp - inc;
         } else if (isPayableAccount(a)) {
-            var debt = 0;
+            var exp = 0, inc = 0, tTo = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === a.id) {
                     var amt = Math.abs(parseFloat(t.amount)) || 0;
-                    if (t.type === 'expense') debt += amt;
-                    else if (t.type === 'income') debt = Math.max(0, debt - amt);
+                    if (t.type === 'expense') exp += amt;
+                    else if (t.type === 'income') inc += amt;
                 }
                 if (t.type === 'transfer' && t.toAccountId === a.id) {
-                    debt = Math.max(0, debt - (Math.abs(parseFloat(t.amount)) || 0));
+                    tTo += Math.abs(parseFloat(t.amount)) || 0;
                 }
             });
-            balanceMap[a.id] = debt;
+            balanceMap[a.id] = exp - inc - tTo;
         } else {
             balanceMap[a.id] = a.outstandingDebt || 0;
         }
@@ -7191,8 +7191,8 @@ function showAccountSummaryFiltered(filteredTransactions, accountId) {
         // 应收欠款：支出增加应收，收入减少应收
         balance = expense - income;
     } else if (isPayable) {
-        // 应付欠款：支出增加应付，收入减少应付
-        balance = expense - income;
+        // 应付欠款：支出(借入)增加应付，收入(偿还)减少应付，转入(还款到应付)也减少应付
+        balance = expense - income - transferIn;
     } else {
         // 自有钱包：初始余额 + 收入 - 支出 + 转入 - 转出
         var initialBalance = account ? (account.initialBalance || 0) : 0;
@@ -8347,32 +8347,32 @@ function recalculateAllAccountBalances() {
         console.log('[余额重算] 处理账户:', account.name, 'id:', account.id, 'category:', account.accountCategory, 'initialBalance:', account.initialBalance, '当前balance:', account.balance);
 
         if (account.accountCategory === 'payable' || account.accountCategory === 'credit') {
-            // 应付欠款：从交易计算欠款总额
-            var debt = 0;
+            // 应付欠款：支出(借入)增加应付，收入(偿还)减少应付，转入(还款到应付账户)也减少应付
+            var expense = 0, income = 0, transferTo = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === account.id) {
                     var amt = Math.abs(parseFloat(t.amount)) || 0;
-                    if (t.type === 'expense') debt += amt;
-                    else if (t.type === 'income') debt = Math.max(0, debt - amt);
+                    if (t.type === 'expense') expense += amt;
+                    else if (t.type === 'income') income += amt;
                 }
                 if (t.type === 'transfer' && t.toAccountId === account.id) {
-                    debt = Math.max(0, debt - (Math.abs(parseFloat(t.amount)) || 0));
+                    transferTo += Math.abs(parseFloat(t.amount)) || 0;
                 }
             });
-            account.outstandingDebt = debt;
-            console.log('[应付欠款] ' + account.name + ': 欠款 ￥' + debt.toFixed(2));
+            account.outstandingDebt = expense - income - transferTo;
+            console.log('[应付欠款] ' + account.name + ': 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' - 转入￥' + transferTo.toFixed(2) + ' = 应付￥' + account.outstandingDebt.toFixed(2));
         } else if (account.accountCategory === 'receivable') {
-            // 应收欠款：从交易计算应收总额
-            var receivable = 0;
+            // 应收欠款：支出(借出)增加应收，收入(收回)减少应收
+            var expense = 0, income = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === account.id) {
                     var amt = Math.abs(parseFloat(t.amount)) || 0;
-                    if (t.type === 'expense') receivable += amt;
-                    else if (t.type === 'income') receivable = Math.max(0, receivable - amt);
+                    if (t.type === 'expense') expense += amt;
+                    else if (t.type === 'income') income += amt;
                 }
             });
-            account.outstandingDebt = receivable;
-            console.log('[应收欠款] ' + account.name + ': 应收 ￥' + receivable.toFixed(2));
+            account.outstandingDebt = expense - income;
+            console.log('[应收欠款] ' + account.name + ': 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' = 应收￥' + account.outstandingDebt.toFixed(2));
         } else {
             // 自有钱包：余额 = 初始余额 + 收入 - 支出 + 转入 - 转出
             // 兼容迁移：如果账户没有 initialBalance 字段，将当前 balance 作为初始余额
