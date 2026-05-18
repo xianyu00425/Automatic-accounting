@@ -11312,9 +11312,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
 
+            // 获取交易对应的分类类型（用于费用分析按分类类型统计）
+            function getTransactionCategoryType(t) {
+                if (t.categoryId) {
+                    var cat = AppState.getCategory(t.categoryId);
+                    if (cat) return cat.type;
+                }
+                return null;
+            }
+
             function aggregateByCategory(type) {
                 var allTx = AppState.getTransactions();
                 var filtered = [];
+
+                // 按分类类型筛选：支出分析统计 category.type==='expense' 的所有交易
+                // 收入分析统计 category.type==='income' 的所有交易
+                var targetType = (type === 'expense') ? 'expense' : 'income';
 
                 // 优先使用日期范围筛选（日历选择器）
                 if (AppState.homeDateFilter && AppState.homeDateFilter.start) {
@@ -11324,7 +11337,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         var t = allTx[i];
                         if (!t.categoryId && !t.categoryRaw) continue;
                         if (isCreditTransaction(t)) continue;
-                        if (t.type === type && t.date >= startStr && t.date <= endStr) {
+                        if (getTransactionCategoryType(t) !== targetType) continue;
+                        if (t.date >= startStr && t.date <= endStr) {
                             filtered.push(t);
                         }
                     }
@@ -11336,7 +11350,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         var t = allTx[i];
                         if (!t.categoryId && !t.categoryRaw) continue;
                         if (isCreditTransaction(t)) continue;
-                        if (t.type !== type) continue;
+                        if (getTransactionCategoryType(t) !== targetType) continue;
                         var d = new Date(t.date);
                         var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
                         if (monthKeys.indexOf(key) !== -1) {
@@ -11354,8 +11368,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         var t = allTx[i];
                         if (!t.categoryId && !t.categoryRaw) continue;
                         if (isCreditTransaction(t)) continue;
+                        if (getTransactionCategoryType(t) !== targetType) continue;
                         var date = new Date(t.date);
-                        if (t.type === type && date.getFullYear() === targetYear && date.getMonth() === targetMonth) {
+                        if (date.getFullYear() === targetYear && date.getMonth() === targetMonth) {
                             filtered.push(t);
                         }
                     }
