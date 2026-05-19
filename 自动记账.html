@@ -7008,6 +7008,9 @@ function calculateBudgetSpend(budget, transactions, targetMonth) {
         if (!t.categoryId) return false;
         // 分类预算：只统计匹配分类的交易
         if (budget.categoryId && t.categoryId !== budget.categoryId) return false;
+        // 排除信贷类交易（与费用分析保持一致）
+        var cr = t.categoryRaw || '';
+        if (cr.indexOf('借入') !== -1 || cr.indexOf('借出') !== -1 || cr.indexOf('还款') !== -1 || cr.indexOf('收款') !== -1 || cr.indexOf('偿还') !== -1 || cr.indexOf('收回') !== -1 || cr.indexOf('借款收入') !== -1 || cr.indexOf('借出支出') !== -1 || cr.indexOf('偿还支出') !== -1 || cr.indexOf('收回收入') !== -1) return false;
         // 日期过滤
         const date = new Date(t.date);
         if (budget.period === 'month') {
@@ -7036,6 +7039,9 @@ function calculateBudgetSpendByFilter(budget, transactions, dateFilter) {
         if (!t.categoryId) return false;
         // 分类预算：只统计匹配分类的交易
         if (budget.categoryId && t.categoryId !== budget.categoryId) return false;
+        // 排除信贷类交易（与费用分析保持一致）
+        var cr = t.categoryRaw || '';
+        if (cr.indexOf('借入') !== -1 || cr.indexOf('借出') !== -1 || cr.indexOf('还款') !== -1 || cr.indexOf('收款') !== -1 || cr.indexOf('偿还') !== -1 || cr.indexOf('收回') !== -1 || cr.indexOf('借款收入') !== -1 || cr.indexOf('借出支出') !== -1 || cr.indexOf('偿还支出') !== -1 || cr.indexOf('收回收入') !== -1) return false;
         // 日期范围过滤
         const d = new Date(t.date);
         const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -7058,6 +7064,9 @@ function calculateBudgetSpendByMonths(budget, transactions, monthFilter) {
     var matched = transactions.filter(t => {
         if (!t.categoryId) return false;
         if (budget.categoryId && t.categoryId !== budget.categoryId) return false;
+        // 排除信贷类交易（与费用分析保持一致）
+        var cr = t.categoryRaw || '';
+        if (cr.indexOf('借入') !== -1 || cr.indexOf('借出') !== -1 || cr.indexOf('还款') !== -1 || cr.indexOf('收款') !== -1 || cr.indexOf('偿还') !== -1 || cr.indexOf('收回') !== -1 || cr.indexOf('借款收入') !== -1 || cr.indexOf('借出支出') !== -1 || cr.indexOf('偿还支出') !== -1 || cr.indexOf('收回收入') !== -1) return false;
         const d = new Date(t.date);
         const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
         return monthKeys.indexOf(key) !== -1;
