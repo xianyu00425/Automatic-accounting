@@ -4290,6 +4290,13 @@ body {
             gap: 4px;
             justify-content: flex-end;
         }
+        .template-tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: white;
+            font-weight: 600;
+        }
 
         /* ===== 预算管理优化 ===== */
         .budget-manage-list {
@@ -4810,6 +4817,15 @@ body {
                         <span class="setting-badge" id="setting-rule-badge" style="background:#66BB6A;">0</span>
                         <i class="fas fa-chevron-right"></i>
                     </div>
+                    <div class="setting-item" onclick="showAccountMappingSettings()">
+                        <div class="setting-icon"><i class="fas fa-link"></i></div>
+                        <div class="setting-info">
+                            <span class="setting-title">账户映射</span>
+                            <span class="setting-desc">支付方式→账户自动匹配规则</span>
+                        </div>
+                        <span class="setting-badge" id="setting-mapping-badge" style="background:#FF9800;">0</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
                     <div class="setting-item" onclick="showBudgetSettings()">
                         <div class="setting-icon"><i class="fas fa-chart-pie"></i></div>
                         <div class="setting-info">
@@ -5146,6 +5162,20 @@ body {
                     <div class="summary-item">
                         <span class="summary-label">跳过行数</span>
                         <span class="summary-value warning" id="preview-skip-count">0</span>
+                    </div>
+                </div>
+                <!-- 账户匹配状态 -->
+                <div class="preview-summary" id="preview-account-match" style="display:none;margin-top:8px;border-top:1px solid var(--border-color);padding-top:12px;">
+                    <div style="width:100%;font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">
+                        <i class="fas fa-credit-card" style="margin-right:4px;color:#FF9800;"></i>账户匹配
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">已匹配</span>
+                        <span class="summary-value success" id="account-matched-count">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">未匹配</span>
+                        <span class="summary-value error" id="account-unmatched-count">0</span>
                     </div>
                 </div>
                 <div class="preview-table-container">
@@ -5898,6 +5928,65 @@ body {
         </div>
     </div>
 
+    <!-- 账户映射管理弹窗 -->
+    <div id="account-mapping-modal" class="modal modal-full">
+        <div class="modal-content">
+            <div class="settings-sub-header">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button class="settings-back-btn" onclick="closeModal('account-mapping-modal')"><i class="fas fa-arrow-left"></i></button>
+                    <h3 style="margin:0;">账户映射管理</h3>
+                    <span class="rule-count-badge" id="mapping-count-badge" style="padding:2px 10px;background:rgba(255,152,0,0.12);color:#FF9800;font-size:12px;font-weight:600;border-radius:12px;">0条</span>
+                </div>
+                <button class="btn-sm btn-sm-primary" onclick="showAddMappingModal()"><i class="fas fa-plus"></i> 添加</button>
+            </div>
+            <div class="settings-sub-body">
+                <div style="max-height:50vh;overflow:auto;border-radius:var(--radius-sm);">
+                    <div id="mapping-table-container">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑账户映射弹窗 -->
+    <div id="mapping-add-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="mapping-modal-title">添加账户映射</h3>
+                <button class="btn-close" onclick="closeModal('mapping-add-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">导入模板</label>
+                    <select class="form-select" id="mapping-template">
+                        <option value="meituan">美团</option>
+                        <option value="jd">京东</option>
+                        <option value="alipay">支付宝</option>
+                    </select>
+                    <p class="form-hint">该规则仅在此模板导入时生效</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">支付方式关键词</label>
+                    <input type="text" class="form-input" id="mapping-keyword" placeholder="如：微信支付、支付宝">
+                    <p class="form-hint">精确匹配导入文件中的"支付方式"字段内容</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">映射账户</label>
+                    <select class="form-select" id="mapping-account">
+                        <option value="">请选择账户...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('mapping-add-modal')">取消</button>
+                <button class="btn-primary" onclick="saveMapping()"><i class="fas fa-check"></i> 保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 预算设置弹窗 -->
     <div id="budget-settings-modal" class="modal modal-full">
         <div class="modal-content">
@@ -6301,6 +6390,34 @@ const AppState = {
 
     saveAccounts(accounts) {
         Storage.set('accounts', accounts);
+    },
+
+    getAccountMappings() {
+        return Storage.get('account_mappings') || [];
+    },
+
+    saveAccountMappings(mappings) {
+        Storage.set('account_mappings', mappings);
+    },
+
+    addAccountMapping(keyword, accountId) {
+        var mappings = this.getAccountMappings();
+        // 检查是否已存在相同关键词
+        var existing = mappings.findIndex(m => m.keyword === keyword);
+        if (existing !== -1) {
+            mappings[existing].accountId = accountId;
+            mappings[existing].updatedAt = Date.now();
+        } else {
+            mappings.push({ id: generateId(), keyword: keyword, accountId: accountId, createdAt: Date.now(), updatedAt: Date.now() });
+        }
+        this.saveAccountMappings(mappings);
+        return mappings;
+    },
+
+    deleteAccountMapping(id) {
+        var mappings = this.getAccountMappings().filter(m => m.id !== id);
+        this.saveAccountMappings(mappings);
+        return mappings;
     },
 
     getClassificationHistory() {
@@ -7976,20 +8093,24 @@ function parseExcelFileAutoDetect(data, accountId) {
             console.log('[模板检测] 最终模板:', template, '数据起始行:', startRow);
 
             const transactions = [];
+            const accountUnmatched = [];
             for (let i = startRow; i < jsonData.length; i++) {
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
 
-                // 美团/京东模板：自动根据支付方式匹配账户
-                if (template === 'meituan' || template === 'jd') {
+                // 美团/京东/支付宝模板：自动根据支付方式匹配账户
+                if (template === 'meituan' || template === 'jd' || template === 'alipay') {
                     const transaction = parseExcelRow(row, realHeaders, accountId, template);
                     if (transaction) {
                         // 自动匹配账户
                         const payMethod = transaction.rawData.payMethod || '';
-                        const matchedAccount = matchAccountByPaymentMethod(payMethod);
+                        const matchedAccount = matchAccountByPaymentMethod(payMethod, template);
                         if (matchedAccount) {
                             transaction.accountId = matchedAccount.id;
                             transaction.accountName = matchedAccount.name;
+                        } else {
+                            transaction.needsAccountMapping = true;
+                            accountUnmatched.push({ payMethod: payMethod, title: transaction.counterparty, amount: transaction.amount });
                         }
                         transactions.push(transaction);
                     }
@@ -8000,7 +8121,7 @@ function parseExcelFileAutoDetect(data, accountId) {
                     }
                 }
             }
-            previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template };
+            previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template, accountUnmatched: accountUnmatched };
             showPreviewModal();
         }
     } catch (err) {
@@ -8035,6 +8156,7 @@ function parseExcelFilePreview(data, accountId, template) {
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
         const transactions = [];
+        const accountUnmatched = [];
         let startRow = 1;
 
         for (let i = 0; i < Math.min(30, jsonData.length); i++) {
@@ -8055,11 +8177,23 @@ function parseExcelFilePreview(data, accountId, template) {
 
             const transaction = parseExcelRow(row, headers, accountId, template);
             if (transaction) {
+                // 美团/京东/支付宝模板：自动匹配账户
+                if (template === 'meituan' || template === 'jd' || template === 'alipay') {
+                    const payMethod = transaction.rawData.payMethod || '';
+                    const matchedAccount = matchAccountByPaymentMethod(payMethod, template);
+                    if (matchedAccount) {
+                        transaction.accountId = matchedAccount.id;
+                        transaction.accountName = matchedAccount.name;
+                    } else {
+                        transaction.needsAccountMapping = true;
+                        accountUnmatched.push({ payMethod: payMethod, title: transaction.counterparty, amount: transaction.amount });
+                    }
+                }
                 transactions.push(transaction);
             }
         }
 
-        previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template };
+        previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template, accountUnmatched: accountUnmatched };
         showPreviewModal();
     } catch (err) {
         showToast('解析失败：' + err.message);
@@ -8125,20 +8259,30 @@ function parseTransactionType(value, amount) {
 }
 
 // 根据支付方式名称自动匹配账户（美团/京东模板专用）
-function matchAccountByPaymentMethod(payMethod) {
+function matchAccountByPaymentMethod(payMethod, template) {
     if (!payMethod) return null;
     const method = String(payMethod).trim();
-    const accounts = AppState.getAccounts();
 
-    // 精确匹配账户名称
+    // 1. 优先使用用户配置的映射关系（精确匹配 + 模板匹配）
+    if (template) {
+        const mappings = AppState.getAccountMappings();
+        const mapped = mappings.find(m => m.template === template && m.keyword === method);
+        if (mapped) {
+            const account = AppState.getAccount(mapped.accountId);
+            if (account) return account;
+        }
+    }
+
+    // 2. 精确匹配账户名称
+    const accounts = AppState.getAccounts();
     for (const a of accounts) {
         if (a.name === method || a.creditorName === method || a.debtorName === method) return a;
     }
-    // 模糊匹配：账户名称包含支付方式关键字
+    // 3. 模糊匹配：账户名称包含支付方式关键字
     for (const a of accounts) {
         if (a.name && (a.name.includes(method) || method.includes(a.name))) return a;
     }
-    // 常见支付方式→账户类型映射
+    // 4. 常见支付方式→账户类型映射
     const payMethodMap = {
         '微信支付': '微信',
         '微信': '微信',
@@ -8498,6 +8642,18 @@ function showPreviewModal() {
     document.getElementById('preview-error-count').textContent = previewData.errors.length;
     document.getElementById('preview-skip-count').textContent = previewData.skipped;
 
+    // 显示账户匹配状态
+    var accountMatchSection = document.getElementById('preview-account-match');
+    if (accountMatchSection) {
+        if (previewData.accountUnmatched && previewData.accountUnmatched.length > 0) {
+            accountMatchSection.style.display = '';
+            document.getElementById('account-matched-count').textContent = previewData.transactions.length - previewData.accountUnmatched.length;
+            document.getElementById('account-unmatched-count').textContent = previewData.accountUnmatched.length;
+        } else {
+            accountMatchSection.style.display = 'none';
+        }
+    }
+
     const tbody = document.getElementById('preview-tbody');
     tbody.innerHTML = previewData.transactions.slice(0, 100).map(function(t) {
         var dateStr = t.dateRaw || formatDate(t.date);
@@ -8516,6 +8672,14 @@ function showPreviewModal() {
         var rd = t.rawData || {};
         var account = AppState.getAccount(t.accountId);
         var typeDisplay = rd.incomeExpense || (t.type === 'income' ? '收入' : t.type === 'transfer' ? '转账' : '支出');
+        var statusDisplay;
+        if (t.needsAccountMapping) {
+            statusDisplay = '<span style="color:#FF9800;font-size:11px;"><i class="fas fa-exclamation-triangle"></i> 未匹配账户(' + (rd.payMethod || '') + ')</span>';
+        } else if (account) {
+            statusDisplay = account.name;
+        } else {
+            statusDisplay = '-';
+        }
         return `
             <tr>
                 <td>${dateStr}</td>
@@ -8523,7 +8687,7 @@ function showPreviewModal() {
                 <td style="color: ${amountColor}">${amountStr}</td>
                 <td>${typeDisplay}</td>
                 <td>${rd.tradeType || rd.product || t.categoryRaw || '-'}</td>
-                <td>${account ? account.name : '?'}</td>
+                <td>${statusDisplay}</td>
             </tr>
         `;
     }).join('');
@@ -8626,6 +8790,10 @@ function confirmImport() {
     var msg = `成功导入 ${previewData.transactions.length} 条记录`;
     if (autoCount > 0) {
         msg += `，其中 ${autoCount} 条已自动分类`;
+    }
+    // 账户匹配状态
+    if (previewData.accountUnmatched && previewData.accountUnmatched.length > 0) {
+        msg += `，${previewData.accountUnmatched.length} 条未匹配账户（请在待处理中处理）`;
     }
     var unmatched = previewData.transactions.length - autoCount;
     if (unmatched > 0) {
@@ -8896,6 +9064,7 @@ function showConfirm(title, message, callback) {
 }
 
 var editingAccountId = null;
+var editingMappingId = null;
 var editingCategoryId = null;
 var editingRuleId = null;
 var editingBudgetId = null;
@@ -10028,6 +10197,130 @@ function deleteBudget(id) {
     });
 }
 
+// ===== 账户映射管理 =====
+
+function showAccountMappingSettings() {
+    document.getElementById('account-mapping-modal').classList.add('active');
+    renderMappingTable();
+}
+
+function renderMappingTable() {
+    var mappings = AppState.getAccountMappings();
+    document.getElementById('mapping-count-badge').textContent = mappings.length + '条';
+
+    // 更新设置页徽章
+    var badge = document.getElementById('setting-mapping-badge');
+    if (badge) badge.textContent = mappings.length;
+
+    var container = document.getElementById('mapping-table-container');
+    if (mappings.length === 0) {
+        container.innerHTML = '<div class="empty-list-placeholder"><i class="fas fa-link"></i><p>暂无映射规则，点击"添加"开始</p></div>';
+        return;
+    }
+
+    var html = '<table class="rule-table"><thead><tr><th>模板</th><th>支付方式</th><th>映射账户</th><th>操作</th></tr></thead><tbody>';
+    mappings.forEach(function(m) {
+        var account = AppState.getAccount(m.accountId);
+        var templateLabel = m.template === 'meituan' ? '美团' : m.template === 'jd' ? '京东' : '支付宝';
+        html += '<tr>' +
+            '<td><span class="template-tag" style="background:' + (m.template === 'meituan' ? '#FFD700' : m.template === 'jd' ? '#E43F5A' : '#1677FF') + ';color:white;padding:2px 8px;border-radius:4px;font-size:11px;">' + templateLabel + '</span></td>' +
+            '<td><strong>' + m.keyword + '</strong></td>' +
+            '<td>' + (account ? account.name : '已删除') + '</td>' +
+            '<td>' +
+                '<button class="btn-icon-sm" onclick="editMapping(\'' + m.id + '\')" title="编辑"><i class="fas fa-pen"></i></button>' +
+                '<button class="btn-icon-sm btn-icon-sm-danger" onclick="deleteMapping(\'' + m.id + '\')" title="删除"><i class="fas fa-trash"></i></button>' +
+            '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function showAddMappingModal() {
+    editingMappingId = null;
+    document.getElementById('mapping-modal-title').textContent = '添加账户映射';
+    document.getElementById('mapping-template').value = 'meituan';
+    document.getElementById('mapping-keyword').value = '';
+
+    // 填充账户选择器
+    var accounts = AppState.getAccounts();
+    var opts = '<option value="">请选择账户...</option>';
+    accounts.forEach(function(a) {
+        opts += '<option value="' + a.id + '">' + a.name + '</option>';
+    });
+    document.getElementById('mapping-account').innerHTML = opts;
+
+    document.getElementById('mapping-add-modal').classList.add('active');
+}
+
+function editMapping(id) {
+    var mappings = AppState.getAccountMappings();
+    var m = mappings.find(function(x) { return x.id === id; });
+    if (!m) return;
+
+    editingMappingId = id;
+    document.getElementById('mapping-modal-title').textContent = '编辑账户映射';
+    document.getElementById('mapping-template').value = m.template;
+    document.getElementById('mapping-keyword').value = m.keyword;
+
+    // 填充账户选择器
+    var accounts = AppState.getAccounts();
+    var opts = '<option value="">请选择账户...</option>';
+    accounts.forEach(function(a) {
+        opts += '<option value="' + a.id + '"' + (a.id === m.accountId ? ' selected' : '') + '>' + a.name + '</option>';
+    });
+    document.getElementById('mapping-account').innerHTML = opts;
+
+    document.getElementById('mapping-add-modal').classList.add('active');
+}
+
+function saveMapping() {
+    var template = document.getElementById('mapping-template').value;
+    var keyword = document.getElementById('mapping-keyword').value.trim();
+    var accountId = document.getElementById('mapping-account').value;
+
+    if (!keyword) { showToast('请输入支付方式关键词'); return; }
+    if (!accountId) { showToast('请选择映射账户'); return; }
+
+    var account = AppState.getAccount(accountId);
+    if (!account) { showToast('所选账户不存在'); return; }
+
+    var mappings = AppState.getAccountMappings();
+
+    // 检查同模板下是否已存在相同关键词
+    var duplicate = mappings.find(function(m) { return m.template === template && m.keyword === keyword && m.id !== editingMappingId; });
+    if (duplicate) {
+        showToast('该模板下已存在关键词"' + keyword + '"的映射规则');
+        return;
+    }
+
+    if (editingMappingId) {
+        var idx = mappings.findIndex(function(m) { return m.id === editingMappingId; });
+        if (idx !== -1) {
+            mappings[idx].template = template;
+            mappings[idx].keyword = keyword;
+            mappings[idx].accountId = accountId;
+            mappings[idx].updatedAt = Date.now();
+        }
+    } else {
+        mappings.push({ id: generateId(), template: template, keyword: keyword, accountId: accountId, createdAt: Date.now(), updatedAt: Date.now() });
+    }
+
+    AppState.saveAccountMappings(mappings);
+    closeModal('mapping-add-modal');
+    renderMappingTable();
+    showToast(editingMappingId ? '映射已更新' : '映射已添加');
+}
+
+function deleteMapping(id) {
+    showConfirm('确认删除', '确定要删除这条映射规则吗？', function() {
+        var mappings = AppState.getAccountMappings().filter(function(m) { return m.id !== id; });
+        AppState.saveAccountMappings(mappings);
+        renderMappingTable();
+        showToast('映射已删除');
+    });
+}
+
 function showDataSettings() {
     document.getElementById('data-transaction-count').textContent = AppState.getTransactions().length;
     document.getElementById('data-category-count').textContent = AppState.getCategories().length;
@@ -10043,6 +10336,7 @@ function exportData() {
         rules: AppState.getRules(),
         budgets: AppState.getBudgets(),
         accounts: AppState.getAccounts(),
+        accountMappings: AppState.getAccountMappings(),
         exportDate: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -10066,6 +10360,7 @@ function importData(input) {
             if (data.rules) AppState.saveRules(data.rules);
             if (data.budgets) AppState.saveBudgets(data.budgets);
             if (data.accounts) AppState.saveAccounts(data.accounts);
+            if (data.accountMappings) AppState.saveAccountMappings(data.accountMappings);
             renderHome();
             showToast('数据导入成功');
         } catch (err) {
