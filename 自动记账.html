@@ -5096,6 +5096,8 @@ body {
                     <label class="form-label">选择模板类型</label>
                     <select class="form-select" id="import-template" onchange="updateTemplateDesc()">
                         <option value="auto">自动检测（推荐）</option>
+                        <option value="meituan">美团</option>
+                        <option value="jd">京东</option>
                         <option value="default">默认模板</option>
                         <option value="wechat">微信支付</option>
                         <option value="alipay">支付宝</option>
@@ -7820,6 +7822,18 @@ function updateTemplateDesc() {
 
     if (template === 'auto') {
         descEl.innerHTML = `上传文件后将自动识别列格式，无需手动选择模板`;
+    } else if (template === 'meituan') {
+        descEl.innerHTML = `
+            <strong>美团模板字段：</strong><br>
+            交易创建时间 | 交易成功时间 | 交易类型 | 订单标题 | 收/支 | 支付方式 | 订单金额 | 实付金额 | 交易单号 | 商家单号 | 备注<br>
+            <span style="color:#9C88F0;">💡 支持自动匹配账户（根据"支付方式"列），无需选择账户</span>
+        `;
+    } else if (template === 'jd') {
+        descEl.innerHTML = `
+            <strong>京东模板字段：</strong><br>
+            交易时间 | 商户名称 | 交易说明 | 金额 | 收/付款方式 | 交易状态 | 收/支 | 交易分类 | 交易订单号 | 商家订单号 | 备注<br>
+            <span style="color:#9C88F0;">💡 支持自动匹配账户（根据"收/付款方式"列），无需选择账户</span>
+        `;
     } else if (template === 'default') {
         descEl.innerHTML = `
             <strong>默认模板字段：</strong><br>
@@ -7849,9 +7863,12 @@ function selectTemplateAndImport(type) {
     const template = document.getElementById('import-template').value;
     const accountId = document.getElementById('import-account').value;
 
-    if (!accountId) {
-        showToast('请先选择账户');
-        return;
+    // 美团/京东模板支持自动账户匹配，不需要选择账户
+    if (template !== 'auto' && template !== 'meituan' && template !== 'jd') {
+        if (!accountId) {
+            showToast('请先选择账户');
+            return;
+        }
     }
 
     if (type === 'file') {
@@ -7869,8 +7886,7 @@ function selectTemplateAndImport(type) {
 function importFromFile() {
     const accountId = document.getElementById('import-account').value;
 
-    if (!accountId) return;
-
+    // 美团/京东模板可以跳过账户选择，自动根据支付方式匹配账户
     closeModal('import-modal');
 
     const input = document.createElement('input');
@@ -7887,9 +7903,9 @@ function importFromFile() {
 
         reader.onload = function(event) {
             if (isExcel) {
-                parseExcelFileAutoDetect(event.target.result, accountId);
+                parseExcelFileAutoDetect(event.target.result, accountId || '');
             } else {
-                parseCSVFileAutoDetect(event.target.result, accountId);
+                parseCSVFileAutoDetect(event.target.result, accountId || '');
             }
         };
 
@@ -7921,25 +7937,67 @@ function parseExcelFileAutoDetect(data, accountId) {
             const headers = jsonData[0].map(h => String(h || '').trim());
             const template = detectTemplateFromHeaders(headers);
             console.log('[模板检测] 检测到模板:', template, '表头:', headers);
-            // 用检测到的模板重新解析
-            const transactions = [];
+
+            // 查找数据起始行
             let startRow = 1;
-            for (let i = 0; i < Math.min(30, jsonData.length); i++) {
-                const row = jsonData[i];
-                if (!row || row.length === 0) continue;
-                const firstCell = String(row[0] || '').trim();
-                if (firstCell.includes('交易时间')) {
-                    startRow = i + 1;
-                    break;
+            if (template === 'meituan') {
+                // 美团：查找包含"交易创建时间"的行
+                for (let i = 0; i < Math.min(30, jsonData.length); i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0) continue;
+                    if (String(row[0] || '').includes('交易创建时间')) {
+                        startRow = i + 1;
+                        break;
+                    }
+                }
+            } else if (template === 'jd') {
+                // 京东：查找包含"交易时间"的行
+                for (let i = 0; i < Math.min(30, jsonData.length); i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0) continue;
+                    if (String(row[0] || '').includes('交易时间')) {
+                        startRow = i + 1;
+                        break;
+                    }
+                }
+            } else {
+                for (let i = 0; i < Math.min(30, jsonData.length); i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0) continue;
+                    const firstCell = String(row[0] || '').trim();
+                    if (firstCell.includes('交易时间')) {
+                        startRow = i + 1;
+                        break;
+                    }
                 }
             }
+
             const realHeaders = jsonData[startRow - 1].map(h => String(h || '').trim());
+            console.log('[模板检测] 最终模板:', template, '数据起始行:', startRow);
+
+            const transactions = [];
             for (let i = startRow; i < jsonData.length; i++) {
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
-                const transaction = parseExcelRow(row, realHeaders, accountId, template);
-                if (transaction) {
-                    transactions.push(transaction);
+
+                // 美团/京东模板：自动根据支付方式匹配账户
+                if (template === 'meituan' || template === 'jd') {
+                    const transaction = parseExcelRow(row, realHeaders, accountId, template);
+                    if (transaction) {
+                        // 自动匹配账户
+                        const payMethod = transaction.rawData.payMethod || '';
+                        const matchedAccount = matchAccountByPaymentMethod(payMethod);
+                        if (matchedAccount) {
+                            transaction.accountId = matchedAccount.id;
+                            transaction.accountName = matchedAccount.name;
+                        }
+                        transactions.push(transaction);
+                    }
+                } else {
+                    const transaction = parseExcelRow(row, realHeaders, accountId, template);
+                    if (transaction) {
+                        transactions.push(transaction);
+                    }
                 }
             }
             previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template };
@@ -7953,6 +8011,10 @@ function parseExcelFileAutoDetect(data, accountId) {
 // 基于表头自动检测模板类型
 function detectTemplateFromHeaders(headers) {
     const headerStr = headers.join(',');
+    // 美团：包含"实付金额"、"支付方式"、"订单标题"、"收/支"
+    if (headerStr.includes('实付金额') && headerStr.includes('支付方式') && headerStr.includes('订单标题')) return 'meituan';
+    // 京东：包含"收/付款方式"、"交易说明"、"交易状态"、"收/支"
+    if (headerStr.includes('收/付款方式') && headerStr.includes('交易说明') && headerStr.includes('交易状态')) return 'jd';
     // 支付宝：包含"收/支"、"金额"、"交易对方"、"商品说明"
     if (headerStr.includes('商品说明') && headerStr.includes('收付款方式')) return 'alipay';
     // 微信支付：包含"收/支"、"金额 (元)"、"交易对方"、"商品"、"支付方式"
@@ -8062,11 +8124,56 @@ function parseTransactionType(value, amount) {
     return amount >= 0 ? 'income' : 'expense';
 }
 
+// 根据支付方式名称自动匹配账户（美团/京东模板专用）
+function matchAccountByPaymentMethod(payMethod) {
+    if (!payMethod) return null;
+    const method = String(payMethod).trim();
+    const accounts = AppState.getAccounts();
+
+    // 精确匹配账户名称
+    for (const a of accounts) {
+        if (a.name === method || a.creditorName === method || a.debtorName === method) return a;
+    }
+    // 模糊匹配：账户名称包含支付方式关键字
+    for (const a of accounts) {
+        if (a.name && (a.name.includes(method) || method.includes(a.name))) return a;
+    }
+    // 常见支付方式→账户类型映射
+    const payMethodMap = {
+        '微信支付': '微信',
+        '微信': '微信',
+        '支付宝': '支付宝',
+        '美团月付': '美团月付',
+        '京东白条': '京东白条',
+        '工商银行': '工商银行',
+        '储蓄卡': '储蓄卡',
+        '信用卡': '信用卡',
+        '京东小金库': '京东小金库'
+    };
+    for (const [keyword, acctName] of Object.entries(payMethodMap)) {
+        if (method.includes(keyword)) {
+            const found = accounts.find(a => a.name.includes(acctName) || (a.creditorName && a.creditorName.includes(acctName)));
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
 function parseExcelRow(row, headers, accountId, fileType) {
     const data = {};
     headers.forEach((header, index) => {
         data[header] = row[index];
     });
+
+    // 美团模板专用解析
+    if (fileType === 'meituan') {
+        return parseMeituanRow(data, row, headers, accountId);
+    }
+
+    // 京东模板专用解析
+    if (fileType === 'jd') {
+        return parseJdRow(data, row, headers, accountId);
+    }
 
     // 智能查找列
     const amountIndex = findAmountColumn(headers);
@@ -8121,6 +8228,135 @@ function parseExcelRow(row, headers, accountId, fileType) {
             payMethod: data['支付方式'] || data['收付款方式'] || ''
         }
     };
+}
+
+// 美团模板专用解析
+function parseMeituanRow(data, row, headers, accountId) {
+    // 美团表头：交易创建时间(0), 交易成功时间(1), 交易类型(2), 订单标题(3), 收/支(4), 支付方式(5), 订单金额(6), 实付金额(7)
+    const timeValue = row[0];
+    const tradeType = String(row[2] || '').trim();
+    const title = String(row[3] || '').trim();
+    const incomeExpense = String(row[4] || '').trim();
+    const payMethod = String(row[5] || '').trim();
+    const amountValue = row[7]; // 实付金额
+
+    if (!timeValue || !amountValue) return null;
+
+    // Excel日期序列号转JS Date
+    const date = parseExcelSerialDate(timeValue);
+    if (!date) return null;
+
+    // 判断收支类型
+    let type;
+    if (incomeExpense === '支出' || tradeType === '支付') {
+        type = 'expense';
+    } else if (incomeExpense === '收入' || tradeType === '退款') {
+        type = 'income';
+    } else if (tradeType === '转账') {
+        type = 'transfer';
+    } else {
+        type = incomeExpense === '收入' ? 'income' : 'expense';
+    }
+
+    const amount = parseAmountValue(amountValue);
+    if (amount === 0) return null;
+
+    return {
+        id: generateId(),
+        date: date.toISOString(),
+        dateRaw: String(timeValue),
+        amount: type === 'transfer' ? -amount : amount,
+        type,
+        counterparty: title,
+        accountId,
+        isMatched: false,
+        categoryRaw: title,
+        rawData: {
+            fileType: 'meituan',
+            tradeTime: String(timeValue),
+            tradeType: tradeType,
+            counterpartyRaw: title,
+            product: title,
+            incomeExpense: incomeExpense,
+            amountRaw: String(amountValue),
+            payMethod: payMethod
+        }
+    };
+}
+
+// 京东模板专用解析
+function parseJdRow(data, row, headers, accountId) {
+    // 京东表头：交易时间(0), 商户名称(1), 交易说明(2), 金额(3), 收/付款方式(4), 交易状态(5), 收/支(6), 交易分类(7)
+    const timeValue = String(row[0] || '').trim();
+    const merchant = String(row[1] || '').trim();
+    const description = String(row[2] || '').trim();
+    const amountValue = row[3];
+    const payMethod = String(row[4] || '').trim();
+    const status = String(row[5] || '').trim();
+    const incomeExpense = String(row[6] || '').trim();
+    const category = String(row[7] || '').trim();
+
+    if (!timeValue || !amountValue) return null;
+
+    const date = parseDateString(timeValue);
+    if (!date) return null;
+
+    // 判断收支类型
+    let type;
+    if (incomeExpense === '支出') {
+        type = 'expense';
+    } else if (incomeExpense === '收入') {
+        type = 'income';
+    } else if (incomeExpense === '不计收支' || status === '还款成功') {
+        type = 'transfer';
+    } else {
+        type = 'expense';
+    }
+
+    const amount = parseAmountValue(amountValue);
+    if (amount === 0) return null;
+
+    return {
+        id: generateId(),
+        date: date.toISOString(),
+        dateRaw: timeValue,
+        amount: type === 'transfer' ? -amount : amount,
+        type,
+        counterparty: merchant,
+        accountId,
+        isMatched: false,
+        categoryRaw: category || description,
+        rawData: {
+            fileType: 'jd',
+            tradeTime: timeValue,
+            tradeType: status,
+            counterpartyRaw: merchant,
+            product: description,
+            incomeExpense: incomeExpense,
+            amountRaw: String(amountValue),
+            payMethod: payMethod
+        }
+    };
+}
+
+// Excel日期序列号转JS Date
+function parseExcelSerialDate(serial) {
+    if (typeof serial === 'number') {
+        // Excel的日期序列号：1900-01-01 = 1
+        const epoch = new Date(1899, 11, 30); // Excel epoch
+        return new Date(epoch.getTime() + serial * 86400000);
+    }
+    // 如果是字符串，尝试解析
+    return parseDateString(String(serial).trim());
+}
+
+// 解析日期字符串
+function parseDateString(str) {
+    if (!str) return null;
+    const cleaned = str.replace(/\t/g, '').trim();
+    const d = new Date(cleaned);
+    if (!isNaN(d.getTime())) return d;
+    return null;
 }
 
 function parseCSVRow(row, headers, accountId, fileType) {
