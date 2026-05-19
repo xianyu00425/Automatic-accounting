@@ -11497,8 +11497,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 var allTx = AppState.getTransactions();
                 var filtered = [];
 
-                // 按分类类型筛选：支出分析统计 category.type==='expense' 的所有交易
-                // 收入分析统计 category.type==='income' 的所有交易
+                // 按分类类型筛选：支出分析统计 category.type==='expense' 的所有交易（含收入和支出）
+                // 收入分析统计 category.type==='income' 的所有交易（含收入和支出）
                 var targetType = (type === 'expense') ? 'expense' : 'income';
 
                 // 优先使用日期范围筛选（日历选择器）
@@ -11552,8 +11552,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (filtered.length === 0) return { data: [], total: 0, count: 0 };
 
+                // 每个分类分别统计支出和收入，然后按分类类型计算差额
+                // 支出分析：分类金额 = 支出 - 收入
+                // 收入分析：分类金额 = 收入 - 支出
                 var categoryMap = {};
-                var totalAmount = 0;
                 for (var k = 0; k < filtered.length; k++) {
                     var item = filtered[k];
                     var name;
@@ -11564,13 +11566,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         name = item.categoryRaw || '未分类';
                     }
                     var amount = Math.abs(item.amount);
-                    totalAmount += amount;
-                    if (categoryMap[name]) { categoryMap[name] += amount; }
-                    else { categoryMap[name] = amount; }
+                    if (!categoryMap[name]) { categoryMap[name] = { expense: 0, income: 0 }; }
+                    if (item.type === 'expense') categoryMap[name].expense += amount;
+                    else if (item.type === 'income') categoryMap[name].income += amount;
                 }
 
                 var entries = [];
-                for (var nm in categoryMap) { entries.push({ name: nm, amount: categoryMap[nm] }); }
+                var totalAmount = 0;
+                for (var nm in categoryMap) {
+                    var net;
+                    if (type === 'expense') {
+                        // 支出分析：支出 - 收入
+                        net = categoryMap[nm].expense - categoryMap[nm].income;
+                    } else {
+                        // 收入分析：收入 - 支出
+                        net = categoryMap[nm].income - categoryMap[nm].expense;
+                    }
+                    if (net > 0) {
+                        entries.push({ name: nm, amount: net });
+                        totalAmount += net;
+                    }
+                }
                 entries.sort(function(a, b) { return b.amount - a.amount; });
                 entries = entries.slice(0, 8);
 
