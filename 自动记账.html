@@ -713,8 +713,79 @@ body {
     margin-bottom: 8px;
 }
 
-.filter-bar-row:last-child {
+.filter-row-compact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.filter-row-compact:last-child {
     margin-bottom: 0;
+}
+
+.filter-select-sm {
+    padding: 7px 8px !important;
+    font-size: 12px !important;
+    min-height: 32px !important;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-icon-sm {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+}
+
+/* 快速筛选标签 */
+.quick-filter-tags {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    flex-wrap: wrap;
+}
+
+.quick-tag {
+    padding: 5px 14px;
+    border-radius: 16px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.quick-tag:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.quick-tag.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.quick-tag-clear {
+    background: #f5f5f5;
+    border-color: #ddd;
+    color: #888;
+}
+
+.quick-tag-clear:hover,
+.quick-tag-clear.active {
+    background: #eee;
+    border-color: #ccc;
+    color: #666;
 }
 
 .search-box {
@@ -4610,23 +4681,31 @@ body {
                             <input type="text" placeholder="搜索商户、分类、标签..." id="search-input" oninput="filterTransactions()">
                         </div>
                     </div>
-                    <!-- 筛选行 2：类型 + 账户 + 日历 -->
-                    <div class="filter-bar filter-bar-row">
-                        <select class="filter-select" id="type-filter" onchange="filterTransactions()">
-                            <option value="all">全部</option>
+                    <!-- 筛选行 2：类型 + 账户 + 分类 + 日历 -->
+                    <div class="filter-bar filter-bar-row filter-row-compact">
+                        <select class="filter-select filter-select-sm" id="type-filter" onchange="filterTransactions()">
+                            <option value="all">类型</option>
                             <option value="income">收入</option>
                             <option value="expense">支出</option>
                             <option value="transfer">转账</option>
                         </select>
-                        <select class="filter-select" id="account-filter" onchange="filterTransactions()">
-                            <option value="all">所有账户</option>
+                        <select class="filter-select filter-select-sm" id="account-filter" onchange="filterTransactions()">
+                            <option value="all">账户</option>
                         </select>
-                        <select class="filter-select" id="category-filter" onchange="filterTransactions()">
-                            <option value="all">所有分类</option>
+                        <select class="filter-select filter-select-sm" id="category-filter" onchange="filterTransactions()">
+                            <option value="all">分类</option>
                         </select>
-                        <button class="btn-icon" onclick="openCalendar('transactions')" title="按日期筛选">
+                        <button class="btn-icon btn-icon-sm" onclick="openCalendar('transactions')" title="按日期筛选">
                             <i class="fas fa-calendar-alt"></i>
                         </button>
+                    </div>
+                    <!-- 快速筛选标签 -->
+                    <div class="quick-filter-tags" id="quick-filter-tags">
+                        <span class="quick-tag" data-tag="today" onclick="applyQuickFilter('today')">今天</span>
+                        <span class="quick-tag" data-tag="week" onclick="applyQuickFilter('week')">本周</span>
+                        <span class="quick-tag" data-tag="month" onclick="applyQuickFilter('month')">本月</span>
+                        <span class="quick-tag" data-tag="default" onclick="applyQuickFilter('default')">默认分类</span>
+                        <span class="quick-tag quick-tag-clear" onclick="applyQuickFilter('none')">清除</span>
                     </div>
                     <!-- 日期筛选标签 -->
                     <div class="date-filter-tags" id="date-filter-tags" style="display:none;"></div>
@@ -5429,6 +5508,11 @@ body {
                         <input type="text" class="form-input" id="account-creditor-name" placeholder="如：花呗、张三">
                         <p class="form-hint">必须绑定债权人</p>
                     </div>
+                    <div class="form-group" id="payable-balance-group">
+                        <label class="form-label">初始应付金额</label>
+                        <input type="number" class="form-input" id="account-payable-balance" step="0.01" placeholder="如：1000.00">
+                        <p class="form-hint">已有但未记录的应付欠款金额</p>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">总额度（可选）</label>
                         <input type="number" class="form-input" id="account-total-limit" step="0.01" placeholder="如：10000.00">
@@ -5444,6 +5528,11 @@ body {
                         <label class="form-label">债务人（欠款人）</label>
                         <input type="text" class="form-input" id="account-debtor-name" placeholder="如：李四">
                         <p class="form-hint">必须绑定债务人</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">初始应收金额</label>
+                        <input type="number" class="form-input" id="account-receivable-balance" step="0.01" placeholder="如：500.00">
+                        <p class="form-hint">已有但未记录的应收欠款金额</p>
                     </div>
                 </div>
                 <div class="form-group">
@@ -6292,7 +6381,8 @@ const AppState = {
                 });
                 return sum + (initialBalance + income - expense + transfersIn - transfersOut);
             } else if (isReceivableAccount(account)) {
-                // 应收欠款：支出(借出)增加应收，收入(收回)减少应收
+                // 应收欠款：余额 = 初始应收 + 支出(借出) - 收入(收回)
+                var initBal = account.initialBalance || 0;
                 var exp = 0, inc = 0;
                 transactions.forEach(function(t) {
                     if (t.accountId === account.id) {
@@ -6301,9 +6391,10 @@ const AppState = {
                         else if (t.type === 'income') inc += amt;
                     }
                 });
-                return sum + (exp - inc);
+                return sum + (initBal + exp - inc);
             } else if (isPayableAccount(account)) {
-                // 应付欠款：支出(借入)增加应付，收入(偿还)减少应付，转入(还款到应付)也减少应付
+                // 应付欠款：余额 = 初始应付 + 支出(借入) - 收入(偿还) - 转入(还款到应付)
+                var initBal = account.initialBalance || 0;
                 var exp = 0, inc = 0, tTo = 0;
                 transactions.forEach(function(t) {
                     if (t.accountId === account.id) {
@@ -6315,7 +6406,7 @@ const AppState = {
                         tTo += Math.abs(parseFloat(t.amount)) || 0;
                     }
                 });
-                return sum - (exp - inc - tTo);
+                return sum - (initBal + exp - inc - tTo);
             }
             // 兼容旧的 credit 分类
             if (account.accountCategory === 'credit') {
@@ -6353,11 +6444,11 @@ const AppState = {
 
         var balance;
         if (account && account.accountCategory === 'receivable') {
-            // 应收欠款：支出增加应收，收入减少应收
-            balance = expense - income;
+            // 应收欠款：余额 = 初始应收 + 支出 - 收入
+            balance = (account.initialBalance || 0) + expense - income;
         } else if (account && (account.accountCategory === 'payable' || account.accountCategory === 'credit')) {
-            // 应付欠款：支出增加应付，收入减少应付（含转账还款）
-            balance = expense - income - transferIn;
+            // 应付欠款：余额 = 初始应付 + 支出 - 收入 - 转入
+            balance = (account.initialBalance || 0) + expense - income - transferIn;
         } else {
             // 自有钱包：初始余额 + 收入 - 支出 + 转入 - 转出
             var initialBalance = account ? (account.initialBalance || 0) : 0;
@@ -6367,7 +6458,7 @@ const AppState = {
         return {
             income,
             expense,
-            balance: initialBalance + income - expense + transferIn - transferOut,
+            balance: balance,
             count: accountTransactions.length
         };
     },
@@ -6682,6 +6773,7 @@ function showBalanceDetail() {
             });
             balanceMap[a.id] = ib + inc - exp + ti - to;
         } else if (isReceivableAccount(a)) {
+            var initBal = a.initialBalance || 0;
             var exp = 0, inc = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === a.id) {
@@ -6690,8 +6782,9 @@ function showBalanceDetail() {
                     else if (t.type === 'income') inc += amt;
                 }
             });
-            balanceMap[a.id] = exp - inc;
+            balanceMap[a.id] = initBal + exp - inc;
         } else if (isPayableAccount(a)) {
+            var initBal = a.initialBalance || 0;
             var exp = 0, inc = 0, tTo = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === a.id) {
@@ -6703,7 +6796,7 @@ function showBalanceDetail() {
                     tTo += Math.abs(parseFloat(t.amount)) || 0;
                 }
             });
-            balanceMap[a.id] = exp - inc - tTo;
+            balanceMap[a.id] = initBal + exp - inc - tTo;
         } else {
             balanceMap[a.id] = a.outstandingDebt || 0;
         }
@@ -7111,7 +7204,11 @@ function renderTransactions() {
     // 【新增】分类过滤
     var categoryFilter = document.getElementById('category-filter')?.value;
     if (categoryFilter && categoryFilter !== 'all') {
-        transactions = transactions.filter(t => t.categoryId === categoryFilter);
+        if (categoryFilter === 'default') {
+            transactions = transactions.filter(t => !t.categoryId || t.categoryId === 'default');
+        } else {
+            transactions = transactions.filter(t => t.categoryId === categoryFilter);
+        }
     }
 
     // 按时间降序排序（最新的在上面）
@@ -7188,13 +7285,10 @@ function showAccountSummaryFiltered(filteredTransactions, accountId) {
 
     var balance;
     if (isReceivable) {
-        // 应收欠款：支出增加应收，收入减少应收
-        balance = expense - income;
+        balance = (account.initialBalance || 0) + expense - income;
     } else if (isPayable) {
-        // 应付欠款：支出(借入)增加应付，收入(偿还)减少应付，转入(还款到应付)也减少应付
-        balance = expense - income - transferIn;
+        balance = (account.initialBalance || 0) + expense - income - transferIn;
     } else {
-        // 自有钱包：初始余额 + 收入 - 支出 + 转入 - 转出
         var initialBalance = account ? (account.initialBalance || 0) : 0;
         balance = initialBalance + income - expense + transferIn - transferOut;
     }
@@ -7206,6 +7300,69 @@ function showAccountSummaryFiltered(filteredTransactions, accountId) {
     el('account-transfer-out').textContent = '-¥' + transferOut.toFixed(2);
     el('account-stat-balance').textContent = '¥' + balance.toFixed(2);
     el('account-count').textContent = count;
+}
+
+// 快速筛选标签
+var activeQuickFilter = null;
+
+function applyQuickFilter(type) {
+    activeQuickFilter = type;
+
+    // 更新标签高亮
+    document.querySelectorAll('.quick-tag').forEach(function(tag) {
+        tag.classList.remove('active');
+    });
+    if (type !== 'none') {
+        document.querySelector('.quick-tag[data-tag="' + type + '"]')?.classList.add('active');
+    }
+
+    var typeFilter = document.getElementById('type-filter');
+    var categoryFilter = document.getElementById('category-filter');
+    var dateFilterInput = document.getElementById('transaction-date-start'); // 日历控件
+
+    if (type === 'none') {
+        // 清除筛选
+        typeFilter.value = 'all';
+        categoryFilter.value = 'all';
+        AppState.transactionDateFilter = null;
+        updateDateFilterTags();
+    } else if (type === 'today') {
+        var today = new Date();
+        var dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+        AppState.transactionDateFilter = { start: dateStr, end: dateStr };
+        updateDateFilterTags();
+    } else if (type === 'week') {
+        var now = new Date();
+        var dayOfWeek = now.getDay() || 7; // 周日=7
+        var weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - dayOfWeek + 1);
+        var weekEnd = new Date(now);
+        var fmt = function(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+        AppState.transactionDateFilter = { start: fmt(weekStart), end: fmt(weekEnd) };
+        updateDateFilterTags();
+    } else if (type === 'month') {
+        var m = new Date();
+        var mStr = m.getFullYear() + '-' + String(m.getMonth()+1).padStart(2,'0');
+        AppState.transactionDateFilter = { start: mStr + '-01', end: m.getFullYear() + '-' + String(m.getMonth()+1).padStart(2,'0') + '-' + String(new Date(m.getFullYear(), m.getMonth()+1, 0).getDate()).padStart(2,'0') };
+        updateDateFilterTags();
+    } else if (type === 'default') {
+        categoryFilter.value = 'default';
+        AppState.transactionDateFilter = null;
+        updateDateFilterTags();
+    }
+
+    filterTransactions();
+}
+
+function updateDateFilterTags() {
+    var container = document.getElementById('date-filter-tags');
+    if (!container) return;
+    if (!AppState.transactionDateFilter || !AppState.transactionDateFilter.start) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'flex';
+    container.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);"><i class="fas fa-calendar" style="margin-right:4px;"></i>' + AppState.transactionDateFilter.start + ' ~ ' + AppState.transactionDateFilter.end + '</span>';
 }
 
 // 过滤交易
@@ -8347,7 +8504,8 @@ function recalculateAllAccountBalances() {
         console.log('[余额重算] 处理账户:', account.name, 'id:', account.id, 'category:', account.accountCategory, 'initialBalance:', account.initialBalance, '当前balance:', account.balance);
 
         if (account.accountCategory === 'payable' || account.accountCategory === 'credit') {
-            // 应付欠款：支出(借入)增加应付，收入(偿还)减少应付，转入(还款到应付账户)也减少应付
+            // 应付欠款：余额 = 初始应付 + 支出(借入) - 收入(偿还) - 转入(还款到应付)
+            var initialBal = account.initialBalance || 0;
             var expense = 0, income = 0, transferTo = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === account.id) {
@@ -8359,10 +8517,12 @@ function recalculateAllAccountBalances() {
                     transferTo += Math.abs(parseFloat(t.amount)) || 0;
                 }
             });
-            account.outstandingDebt = expense - income - transferTo;
-            console.log('[应付欠款] ' + account.name + ': 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' - 转入￥' + transferTo.toFixed(2) + ' = 应付￥' + account.outstandingDebt.toFixed(2));
+            account.outstandingDebt = initialBal + expense - income - transferTo;
+            account.balance = account.outstandingDebt;
+            console.log('[应付欠款] ' + account.name + ': 初始 ￥' + initialBal.toFixed(2) + ' + 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' - 转入￥' + transferTo.toFixed(2) + ' = 应付￥' + account.outstandingDebt.toFixed(2));
         } else if (account.accountCategory === 'receivable') {
-            // 应收欠款：支出(借出)增加应收，收入(收回)减少应收
+            // 应收欠款：余额 = 初始应收 + 支出(借出) - 收入(收回)
+            var initialBal = account.initialBalance || 0;
             var expense = 0, income = 0;
             transactions.forEach(function(t) {
                 if (t.accountId === account.id) {
@@ -8371,8 +8531,9 @@ function recalculateAllAccountBalances() {
                     else if (t.type === 'income') income += amt;
                 }
             });
-            account.outstandingDebt = expense - income;
-            console.log('[应收欠款] ' + account.name + ': 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' = 应收￥' + account.outstandingDebt.toFixed(2));
+            account.outstandingDebt = initialBal + expense - income;
+            account.balance = account.outstandingDebt;
+            console.log('[应收欠款] ' + account.name + ': 初始 ￥' + initialBal.toFixed(2) + ' + 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' = 应收￥' + account.outstandingDebt.toFixed(2));
         } else {
             // 自有钱包：余额 = 初始余额 + 收入 - 支出 + 转入 - 转出
             // 兼容迁移：如果账户没有 initialBalance 字段，将当前 balance 作为初始余额
@@ -8612,6 +8773,8 @@ function showAddAccountModal() {
     document.getElementById('account-repayment-day').value = '';
     document.getElementById('account-creditor-name').value = '';
     document.getElementById('account-debtor-name').value = '';
+    document.getElementById('account-payable-balance').value = '';
+    document.getElementById('account-receivable-balance').value = '';
     resetColorPicker('account-color-picker', '#2196F3');
     toggleAccountCategoryFields();
     document.getElementById('account-modal').classList.add('active');
@@ -8631,6 +8794,8 @@ function editAccount(id) {
     document.getElementById('account-repayment-day').value = account.repaymentDay || '';
     document.getElementById('account-creditor-name').value = account.creditorName || '';
     document.getElementById('account-debtor-name').value = account.debtorName || '';
+    document.getElementById('account-payable-balance').value = account.accountCategory === 'payable' && account.initialBalance ? account.initialBalance : '';
+    document.getElementById('account-receivable-balance').value = account.accountCategory === 'receivable' && account.initialBalance ? account.initialBalance : '';
     resetColorPicker('account-color-picker', account.color || '#2196F3');
     toggleAccountCategoryFields();
     document.getElementById('account-modal').classList.add('active');
@@ -8686,12 +8851,14 @@ function saveAccount() {
         if (!creditorName) { showToast('必须填写债权人'); return; }
         var totalLimit = parseFloat(document.getElementById('account-total-limit').value) || 0;
         var repaymentDay = parseInt(document.getElementById('account-repayment-day').value) || 0;
+        var payableInitialBalance = parseFloat(document.getElementById('account-payable-balance').value) || 0;
 
         baseData.creditorName = creditorName;
         baseData.totalLimit = totalLimit;
         baseData.repaymentDay = repaymentDay;
-        baseData.balance = 0;
-        baseData.outstandingDebt = 0; // 由交易计算
+        baseData.initialBalance = payableInitialBalance;
+        baseData.balance = payableInitialBalance; // 初始值，后续 recalculate 重算
+        baseData.outstandingDebt = payableInitialBalance; // 由交易计算
         baseData.debtorName = '';
 
         if (!editingAccountId) {
@@ -8701,10 +8868,12 @@ function saveAccount() {
         // 应收欠款（资产）
         var debtorName = document.getElementById('account-debtor-name').value.trim();
         if (!debtorName) { showToast('必须填写债务人'); return; }
+        var receivableInitialBalance = parseFloat(document.getElementById('account-receivable-balance').value) || 0;
 
         baseData.debtorName = debtorName;
-        baseData.balance = 0;
-        baseData.outstandingDebt = 0; // 由交易计算
+        baseData.initialBalance = receivableInitialBalance;
+        baseData.balance = receivableInitialBalance; // 初始值，后续 recalculate 重算
+        baseData.outstandingDebt = receivableInitialBalance; // 由交易计算
         baseData.creditorName = '';
         baseData.totalLimit = 0;
         baseData.repaymentDay = 0;
@@ -10907,6 +11076,7 @@ function initCategoryFilter() {
     if (cf) {
         var categories = AppState.getCategories();
         var html = '<option value="all">所有分类</option>';
+        html += '<option value="default">默认分类</option>';
         // 支出分类
         var expenseCats = categories.filter(function(c) { return c.type === 'expense'; });
         if (expenseCats.length > 0) {
@@ -10924,8 +11094,10 @@ function initCategoryFilter() {
         cf.innerHTML = html;
         // 恢复之前选中的分类筛选（验证选项存在）
         if (AppState.billCategoryFilter) {
-            var optExists = false;
-            categories.forEach(function(c) { if (c.id === AppState.billCategoryFilter) optExists = true; });
+            var optExists = AppState.billCategoryFilter === 'default';
+            if (!optExists) {
+                categories.forEach(function(c) { if (c.id === AppState.billCategoryFilter) optExists = true; });
+            }
             if (optExists) {
                 cf.value = AppState.billCategoryFilter;
             } else {
