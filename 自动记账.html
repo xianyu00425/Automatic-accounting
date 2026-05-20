@@ -2337,6 +2337,54 @@ body {
     padding: 4px 0;
 }
 
+.import-error-icon {
+    text-align: center;
+    font-size: 48px;
+    color: var(--danger-color);
+    margin: 12px 0 16px;
+    opacity: 0.8;
+}
+.import-error-reason {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+.import-error-guidance {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.6;
+    background: rgba(255, 152, 0, 0.08);
+    border: 1px solid rgba(255, 152, 0, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    white-space: pre-line;
+}
+.import-error-detail { margin-top: 8px; font-size: 12px; }
+.import-error-detail summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 12px;
+    user-select: none;
+}
+.import-error-detail pre {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 11px;
+    line-height: 1.5;
+    overflow-x: auto;
+    color: var(--danger-color);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-top: 8px;
+}
+
 /* 模板说明 */
 .template-desc {
     font-size: 12px;
@@ -6189,6 +6237,32 @@ body {
         </div>
     </div>
 
+    <div id="import-error-modal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3 id="import-error-title">导入失败</h3>
+                <button class="btn-close" onclick="closeModal('import-error-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="import-error-icon"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="import-error-reason" id="import-error-reason"></div>
+                <div class="import-error-guidance" id="import-error-guidance"></div>
+                <details class="import-error-detail">
+                    <summary>技术详情</summary>
+                    <pre id="import-error-detail"></pre>
+                </details>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="copyErrorDetail()">
+                    <i class="fas fa-copy" style="margin-right:6px;"></i>复制错误信息
+                </button>
+                <button class="btn-primary" onclick="closeModal('import-error-modal')">我知道了</button>
+            </div>
+        </div>
+    </div>
+
     <script>
 ﻿﻿// 自动记账 V3 增强版 - JavaScript
 // 新增功能：
@@ -8013,10 +8087,30 @@ function importFromFile() {
         const file = e.target.files[0];
         if (!file) return;
 
+        // 文件格式校验
+        const validExts = ['.csv', '.xlsx', '.xls'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!validExts.includes(ext)) {
+            showImportError('不支持的文件格式', '请上传 .xlsx、.xls 或 .csv 格式的账单文件。', '文件名: ' + file.name + '，扩展名: ' + ext);
+            return;
+        }
+        if (file.size === 0) {
+            showImportError('文件为空', '该文件不包含任何数据，请确认导出了正确的账单。', '文件大小: 0 bytes');
+            return;
+        }
+        if (file.size > 50 * 1024 * 1024) {
+            showImportError('文件过大', '文件超过 50MB，请减小文件后重试。', '文件大小: ' + (file.size / 1024 / 1024).toFixed(1) + ' MB');
+            return;
+        }
+
         showToast(`正在解析：${file.name}`);
 
         const reader = new FileReader();
         const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+
+        reader.onerror = function() {
+            showImportError('文件读取失败', '请确认文件未被占用、未损坏，且有读取权限。', 'FileReader error code: ' + (reader.error ? reader.error.code : 'unknown'));
+        };
 
         reader.onload = function(event) {
             if (isExcel) {
@@ -8037,16 +8131,32 @@ function importFromFile() {
 
 // 自动检测模板类型（基于CSV表头）
 function parseCSVFileAutoDetect(content, accountId) {
-    const lines = content.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    const template = detectTemplateFromHeaders(headers);
-    console.log('[模板检测] 检测到模板:', template, '表头:', headers);
-    parseCSVFilePreview(content, accountId, template);
+    try {
+        if (!content || !content.trim()) {
+            showImportError('文件内容为空', 'CSV 文件不包含任何数据，请确认导出内容完整。', '');
+            return;
+        }
+        const lines = content.split('\n');
+        if (lines.length < 1 || !lines[0].trim()) {
+            showImportError('CSV 文件无表头行', '第一行应为列名（如"交易时间"、"金额"等）。', '行数: ' + lines.length);
+            return;
+        }
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        const template = detectTemplateFromHeaders(headers);
+        console.log('[模板检测] 检测到模板:', template, '表头:', headers);
+        parseCSVFilePreview(content, accountId, template);
+    } catch (err) {
+        showImportError('CSV 解析失败', '请确认文件是标准 CSV 格式（逗号分隔，UTF-8 编码）。', err.message);
+    }
 }
 
 // 自动检测模板类型（基于Excel表头）
 function parseExcelFileAutoDetect(data, accountId) {
     try {
+        if (typeof XLSX === 'undefined') {
+            showImportError('Excel 解析库未加载', '请刷新页面后重试，确保网络连接正常。', 'XLSX library not loaded');
+            return;
+        }
         const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
@@ -8055,6 +8165,14 @@ function parseExcelFileAutoDetect(data, accountId) {
             const template = detectTemplateFromHeaders(headers);
             console.log('[模板检测] 检测到模板:', template, '表头:', headers);
             console.log('[模板检测] 原始表头(前10个):', jsonData[0]);
+
+            // 模板检测校验：至少包含时间和金额类字段
+            const hasTime = headers.some(h => String(h).includes('时间') || String(h).includes('日期'));
+            const hasAmount = headers.some(h => String(h).includes('金额'));
+            if (!hasTime || !hasAmount) {
+                showImportError('无法识别文件格式', '未能找到可识别的表头（需要包含"交易时间"、"金额"等字段）。请确认导出的是平台原始账单，支持：美团、京东、支付宝、微信支付、默认格式。', '检测到的表头: [' + headers.slice(0, 10).join(', ') + ']');
+                return;
+            }
 
             // 查找数据起始行
             let startRow = 1;
@@ -8127,11 +8245,30 @@ function parseExcelFileAutoDetect(data, accountId) {
             if (jdParseCount > 0) {
                 console.log('[京东解析] 共解析', jdParseCount, '条记录，示例payMethod:', transactions.length > 0 ? (transactions[0].rawData.payMethod || '(空)') : '无');
             }
+
+            // 零有效行校验
+            if (transactions.length === 0) {
+                const dataRows = jsonData.length - startRow;
+                showImportError('未解析到有效数据', '共 ' + dataRows + ' 行数据，但无一符合解析规则。请确认：\n1. 选择的是正确的账单文件\n2. 数据包含有效的日期、金额和交易对方\n3. 文件未包含过多空行', '数据行数: ' + dataRows + ', 模板: ' + template);
+                return;
+            }
+
             previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template, accountUnmatched: accountUnmatched };
             showPreviewModal();
         }
     } catch (err) {
-        showToast('解析失败：' + err.message);
+        let reason, guidance;
+        if (err.message && err.message.includes('Corrupted')) {
+            reason = 'Excel 文件已损坏或格式无效';
+            guidance = '请重新从账单平台导出文件，不要手动修改格式。';
+        } else if (err.message && (err.message.includes('OOXML') || err.message.includes('zip'))) {
+            reason = '无效的 Excel 文件格式';
+            guidance = '文件可能不是真正的 .xlsx 格式。请从原始平台重新导出，不要仅修改文件扩展名。';
+        } else {
+            reason = 'Excel 解析失败';
+            guidance = '请确认文件是从账单平台正确导出的 .xlsx / .xls 文件。';
+        }
+        showImportError(reason, guidance, err.message);
     }
 }
 
@@ -8202,7 +8339,18 @@ function parseExcelFilePreview(data, accountId, template) {
         previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template, accountUnmatched: accountUnmatched };
         showPreviewModal();
     } catch (err) {
-        showToast('解析失败：' + err.message);
+        let reason, guidance;
+        if (err.message && err.message.includes('Corrupted')) {
+            reason = 'Excel 文件已损坏或格式无效';
+            guidance = '请重新从账单平台导出文件，不要手动修改格式。';
+        } else if (err.message && (err.message.includes('OOXML') || err.message.includes('zip'))) {
+            reason = '无效的 Excel 文件格式';
+            guidance = '文件可能不是真正的 .xlsx 格式。请从原始平台重新导出，不要仅修改文件扩展名。';
+        } else {
+            reason = 'Excel 解析失败';
+            guidance = '请确认文件是从账单平台正确导出的 .xlsx / .xls 文件。';
+        }
+        showImportError(reason, guidance, err.message);
     }
 }
 
@@ -8220,6 +8368,13 @@ function parseCSVFilePreview(content, accountId, template) {
         if (transaction) {
             transactions.push(transaction);
         }
+    }
+
+    // 零有效行校验
+    if (transactions.length === 0) {
+        const dataRows = lines.length - 1;
+        showImportError('未解析到有效数据', '共 ' + dataRows + ' 行数据，但无一符合解析规则。请确认：\n1. 选择的是正确的账单文件\n2. 数据包含有效的日期、金额和交易对方', '数据行数: ' + dataRows + ', 模板: ' + template);
+        return;
     }
 
     previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template };
@@ -8911,7 +9066,10 @@ function processPastedData() {
     }
 
     if (transactions.length === 0) {
-        showToast('未解析到有效数据' + (errors.length > 0 ? '：' + errors[0] : ''));
+        const errorSummary = errors.length > 0
+            ? '共 ' + errors.length + ' 行解析失败，示例：' + errors.slice(0, 3).join('；')
+            : '所有行均无法解析，请确认数据格式与所选模板匹配。';
+        showImportError('粘贴数据解析失败', errorSummary, '模板: ' + template + ', 总行数: ' + (lines.length - 1) + ', 错误行数: ' + errors.length);
         return;
     }
 
@@ -9058,6 +9216,41 @@ function showToast(message) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 2000);
+}
+
+function showImportError(reason, guidance, originalError) {
+    document.getElementById('import-error-title').textContent = '导入失败';
+    document.getElementById('import-error-reason').textContent = reason;
+    document.getElementById('import-error-guidance').textContent = guidance;
+    const detailEl = document.getElementById('import-error-detail');
+    if (originalError) {
+        detailEl.textContent = originalError;
+        detailEl.parentElement.style.display = '';
+    } else {
+        detailEl.parentElement.style.display = 'none';
+    }
+    document.getElementById('import-error-modal').classList.add('active');
+}
+
+function copyErrorDetail() {
+    var reason = document.getElementById('import-error-reason').textContent;
+    var guidance = document.getElementById('import-error-guidance').textContent;
+    var detail = document.getElementById('import-error-detail').textContent;
+    var text = reason + '\n' + guidance + (detail ? '\n' + detail : '');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() { showToast('已复制到剪贴板'); }).catch(function() { fallbackCopy(text); });
+    } else {
+        fallbackCopy(text);
+    }
+}
+function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('已复制到剪贴板');
 }
 
 function showConfirm(title, message, callback) {
@@ -10372,7 +10565,7 @@ function importData(input) {
             renderHome();
             showToast('数据导入成功');
         } catch (err) {
-            showToast('导入失败：文件格式错误');
+            showImportError('JSON 数据导入失败', '请确认文件是此应用导出的 .json 备份文件，且内容完整未被篡改。', '解析错误: ' + err.message);
         }
     };
     reader.readAsText(input.files[0]);
