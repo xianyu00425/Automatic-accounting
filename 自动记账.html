@@ -8161,10 +8161,25 @@ function parseExcelFileAutoDetect(data, accountId) {
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
         if (jsonData.length > 0) {
-            const headers = jsonData[0].map(h => String(h || '').trim());
+            // 查找真实表头行：扫描前10行，找包含账单关键字的行
+            let headerRowIdx = 0;
+            for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+                const row = jsonData[i];
+                if (!row || row.length === 0) continue;
+                const rowStr = row.map(c => String(c || '').trim()).join(',');
+                // 美团/京东/支付宝/微信/默认的关键字
+                const keywords = ['时间', '金额', '收/支', '交易', '商品', '支付方式', '收/付款方式', '交易说明', '订单', '商户', '对方'];
+                let matchCount = 0;
+                keywords.forEach(kw => { if (rowStr.includes(kw)) matchCount++; });
+                if (matchCount >= 3) {
+                    headerRowIdx = i;
+                    break;
+                }
+            }
+            const headers = jsonData[headerRowIdx].map(h => String(h || '').trim());
             const template = detectTemplateFromHeaders(headers);
-            console.log('[模板检测] 检测到模板:', template, '表头:', headers);
-            console.log('[模板检测] 原始表头(前10个):', jsonData[0]);
+            console.log('[模板检测] 表头行索引:', headerRowIdx, '检测到模板:', template, '表头:', headers);
+            console.log('[模板检测] 原始表头行(前10个):', jsonData[headerRowIdx]);
 
             // 模板检测校验：至少包含时间和金额类字段
             const hasTime = headers.some(h => String(h).includes('时间') || String(h).includes('日期'));
@@ -8174,42 +8189,8 @@ function parseExcelFileAutoDetect(data, accountId) {
                 return;
             }
 
-            // 查找数据起始行
-            let startRow = 1;
-            if (template === 'meituan') {
-                // 美团：查找包含"交易创建时间"的行
-                for (let i = 0; i < Math.min(30, jsonData.length); i++) {
-                    const row = jsonData[i];
-                    if (!row || row.length === 0) continue;
-                    if (String(row[0] || '').includes('交易创建时间')) {
-                        startRow = i + 1;
-                        break;
-                    }
-                }
-            } else if (template === 'jd') {
-                // 京东：查找包含"交易时间"的行
-                for (let i = 0; i < Math.min(30, jsonData.length); i++) {
-                    const row = jsonData[i];
-                    if (!row || row.length === 0) continue;
-                    if (String(row[0] || '').includes('交易时间')) {
-                        startRow = i + 1;
-                        break;
-                    }
-                }
-            } else {
-                for (let i = 0; i < Math.min(30, jsonData.length); i++) {
-                    const row = jsonData[i];
-                    if (!row || row.length === 0) continue;
-                    const firstCell = String(row[0] || '').trim();
-                    if (firstCell.includes('交易时间')) {
-                        startRow = i + 1;
-                        break;
-                    }
-                }
-            }
-
-            const realHeaders = jsonData[startRow - 1].map(h => String(h || '').trim());
-            console.log('[模板检测] 最终模板:', template, '数据起始行:', startRow);
+            // 查找数据起始行（表头行的下一行）
+            let startRow = headerRowIdx + 1;
 
             const transactions = [];
             const accountUnmatched = [];
@@ -8222,12 +8203,12 @@ function parseExcelFileAutoDetect(data, accountId) {
                 // 调试：打印第一行数据
                 if (i === startRow) {
                     console.log('[解析调试] 模板:', template, '首行数据(row):', JSON.stringify(row.slice(0, 10)), '列数:', row.length);
-                    console.log('[解析调试] realHeaders:', JSON.stringify(realHeaders.slice(0, 10)));
+                    console.log('[解析调试] headers:', JSON.stringify(headers.slice(0, 10)));
                 }
 
                 // 美团/京东/支付宝模板：自动根据支付方式匹配账户
                 if (template === 'meituan' || template === 'jd' || template === 'alipay') {
-                    const transaction = parseExcelRow(row, realHeaders, accountId, template);
+                    const transaction = parseExcelRow(row, headers, accountId, template);
                     if (transaction) {
                         // 自动匹配账户
                         const payMethod = transaction.rawData.payMethod || '';
@@ -8253,7 +8234,7 @@ function parseExcelFileAutoDetect(data, accountId) {
                         console.log('[解析调试] 失败原因:', parseFailReason);
                     }
                 } else {
-                    const transaction = parseExcelRow(row, realHeaders, accountId, template);
+                    const transaction = parseExcelRow(row, headers, accountId, template);
                     if (transaction) {
                         transactions.push(transaction);
                     } else if (!parseFailReason) {
@@ -8325,19 +8306,23 @@ function parseExcelFilePreview(data, accountId, template) {
 
         const transactions = [];
         const accountUnmatched = [];
-        let startRow = 1;
 
-        for (let i = 0; i < Math.min(30, jsonData.length); i++) {
+        // 查找真实表头行：扫描前10行，找包含账单关键字的行
+        let headerRowIdx = 0;
+        for (let i = 0; i < Math.min(10, jsonData.length); i++) {
             const row = jsonData[i];
             if (!row || row.length === 0) continue;
-            const firstCell = String(row[0] || '').trim();
-            if (firstCell.includes('交易时间')) {
-                startRow = i + 1;
+            const rowStr = row.map(c => String(c || '').trim()).join(',');
+            const keywords = ['时间', '金额', '收/支', '交易', '商品', '支付方式', '收/付款方式', '交易说明', '订单', '商户', '对方'];
+            let matchCount = 0;
+            keywords.forEach(kw => { if (rowStr.includes(kw)) matchCount++; });
+            if (matchCount >= 3) {
+                headerRowIdx = i;
                 break;
             }
         }
-
-        const headers = jsonData[startRow - 1].map(h => String(h || '').trim());
+        let startRow = headerRowIdx + 1;
+        const headers = jsonData[headerRowIdx].map(h => String(h || '').trim());
 
         for (let i = startRow; i < jsonData.length; i++) {
             const row = jsonData[i];
