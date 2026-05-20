@@ -8054,6 +8054,7 @@ function parseExcelFileAutoDetect(data, accountId) {
             const headers = jsonData[0].map(h => String(h || '').trim());
             const template = detectTemplateFromHeaders(headers);
             console.log('[模板检测] 检测到模板:', template, '表头:', headers);
+            console.log('[模板检测] 原始表头(前10个):', jsonData[0]);
 
             // 查找数据起始行
             let startRow = 1;
@@ -8094,6 +8095,7 @@ function parseExcelFileAutoDetect(data, accountId) {
 
             const transactions = [];
             const accountUnmatched = [];
+            let jdParseCount = 0;
             for (let i = startRow; i < jsonData.length; i++) {
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
@@ -8113,6 +8115,7 @@ function parseExcelFileAutoDetect(data, accountId) {
                             accountUnmatched.push({ payMethod: payMethod, title: transaction.counterparty, amount: transaction.amount });
                         }
                         transactions.push(transaction);
+                        if (template === 'jd') jdParseCount++;
                     }
                 } else {
                     const transaction = parseExcelRow(row, realHeaders, accountId, template);
@@ -8120,6 +8123,9 @@ function parseExcelFileAutoDetect(data, accountId) {
                         transactions.push(transaction);
                     }
                 }
+            }
+            if (jdParseCount > 0) {
+                console.log('[京东解析] 共解析', jdParseCount, '条记录，示例payMethod:', transactions.length > 0 ? (transactions[0].rawData.payMethod || '(空)') : '无');
             }
             previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template, accountUnmatched: accountUnmatched };
             showPreviewModal();
@@ -8439,6 +8445,8 @@ function parseJdRow(data, row, headers, accountId) {
     const status = String(row[5] || '').trim();
     const incomeExpense = String(row[6] || '').trim();
     const category = String(row[7] || '').trim();
+
+    console.log('[京东解析] row[0]=', timeValue, 'row[1]=', merchant, 'row[3]=', amountValue, 'row[4](支付方式)=', payMethod, 'row[5]=', status, 'row[6]=', incomeExpense);
 
     if (!timeValue || !amountValue) return null;
 
