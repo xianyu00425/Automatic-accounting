@@ -8214,9 +8214,16 @@ function parseExcelFileAutoDetect(data, accountId) {
             const transactions = [];
             const accountUnmatched = [];
             let jdParseCount = 0;
+            let parseFailReason = '';
             for (let i = startRow; i < jsonData.length; i++) {
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
+
+                // 调试：打印第一行数据
+                if (i === startRow) {
+                    console.log('[解析调试] 模板:', template, '首行数据(row):', JSON.stringify(row.slice(0, 10)), '列数:', row.length);
+                    console.log('[解析调试] realHeaders:', JSON.stringify(realHeaders.slice(0, 10)));
+                }
 
                 // 美团/京东/支付宝模板：自动根据支付方式匹配账户
                 if (template === 'meituan' || template === 'jd' || template === 'alipay') {
@@ -8234,11 +8241,24 @@ function parseExcelFileAutoDetect(data, accountId) {
                         }
                         transactions.push(transaction);
                         if (template === 'jd') jdParseCount++;
+                    } else if (!parseFailReason) {
+                        // 记录第一条失败的原因
+                        if (template === 'meituan') {
+                            parseFailReason = '美团解析返回null: row[0]=' + (row[0]||'') + ' row[7]=' + (row[7]||'');
+                        } else if (template === 'jd') {
+                            parseFailReason = '京东解析返回null: row[0]=' + (row[0]||'') + ' row[3]=' + (row[3]||'');
+                        } else {
+                            parseFailReason = template + '解析返回null: row=' + JSON.stringify(row.slice(0, 5));
+                        }
+                        console.log('[解析调试] 失败原因:', parseFailReason);
                     }
                 } else {
                     const transaction = parseExcelRow(row, realHeaders, accountId, template);
                     if (transaction) {
                         transactions.push(transaction);
+                    } else if (!parseFailReason) {
+                        parseFailReason = '默认解析返回null: template=' + template + ' row=' + JSON.stringify(row.slice(0, 5));
+                        console.log('[解析调试] 失败原因:', parseFailReason);
                     }
                 }
             }
@@ -8249,7 +8269,12 @@ function parseExcelFileAutoDetect(data, accountId) {
             // 零有效行校验
             if (transactions.length === 0) {
                 const dataRows = jsonData.length - startRow;
-                showImportError('未解析到有效数据', '共 ' + dataRows + ' 行数据，但无一符合解析规则。请确认：\n1. 选择的是正确的账单文件\n2. 数据包含有效的日期、金额和交易对方\n3. 文件未包含过多空行', '数据行数: ' + dataRows + ', 模板: ' + template);
+                var errorMsg = '共 ' + dataRows + ' 行数据，但无一符合解析规则。';
+                if (parseFailReason) {
+                    errorMsg += '\n示例失败原因: ' + parseFailReason;
+                }
+                errorMsg += '\n请确认：\n1. 选择的是正确的账单文件\n2. 数据包含有效的日期、金额和交易对方\n3. 文件未包含过多空行';
+                showImportError('未解析到有效数据', errorMsg, '数据行数: ' + dataRows + ', 模板: ' + template + ', 列数: ' + (jsonData[startRow] ? jsonData[startRow].length : 0));
                 return;
             }
 
@@ -8275,9 +8300,9 @@ function parseExcelFileAutoDetect(data, accountId) {
 // 基于表头自动检测模板类型
 function detectTemplateFromHeaders(headers) {
     const headerStr = headers.join(',');
-    // 美团：包含"实付金额"、"支付方式"、"订单标题"、"收/支"
-    if (headerStr.includes('实付金额') && headerStr.includes('支付方式') && headerStr.includes('订单标题')) return 'meituan';
-    // 京东：包含"收/付款方式"、"交易说明"、"交易状态"、"收/支"
+    // 美团：包含"实付金额"、"支付方式"，以及"订单标题"或"商品"（不同版本表头不同）
+    if (headerStr.includes('实付金额') && headerStr.includes('支付方式') && (headerStr.includes('订单标题') || headerStr.includes('商品'))) return 'meituan';
+    // 京东：包含"收/付款方式"、"交易说明"、"交易状态"
     if (headerStr.includes('收/付款方式') && headerStr.includes('交易说明') && headerStr.includes('交易状态')) return 'jd';
     // 支付宝：包含"收/支"、"金额"、"交易对方"、"商品说明"
     if (headerStr.includes('商品说明') && headerStr.includes('收付款方式')) return 'alipay';
@@ -8288,7 +8313,7 @@ function detectTemplateFromHeaders(headers) {
     // 如果以上都不匹配，但有基本字段，使用默认模板
     if (headerStr.includes('交易时间') && (headerStr.includes('金额') || headerStr.includes('收/支'))) return 'default';
     // 无法识别
-    return 'default';
+    return 'unknown';
 }
 
 // 预览和导入功能（简化版）
