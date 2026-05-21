@@ -8106,29 +8106,20 @@ function importFromFile() {
         showToast(`正在解析：${file.name}`);
 
         const reader = new FileReader();
-        const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
 
-        console.log('[导入调试] 选择文件:', file.name, '大小:', file.size, '类型:', isExcel ? 'Excel' : 'CSV', 'accountId:', accountId);
+        console.log('[导入调试] 选择文件:', file.name, '大小:', file.size, 'accountId:', accountId);
 
         reader.onerror = function() {
             console.error('[导入调试] FileReader error:', reader.error);
             showImportError('文件读取失败', '请确认文件未被占用、未损坏，且有读取权限。', 'FileReader error code: ' + (reader.error ? reader.error.code : 'unknown'));
         };
 
+        // 统一使用 XLSX 库解析所有文件格式（CSV + Excel），消除 CSV 专用解析器的 bug
         reader.onload = function(event) {
-            console.log('[导入调试] 文件读取完成, result类型:', typeof event.target.result, '大小:', event.target.result ? event.target.result.byteLength || event.target.result.length : 0);
-            if (isExcel) {
-                parseExcelFileAutoDetect(event.target.result, accountId || '');
-            } else {
-                parseCSVFileAutoDetect(event.target.result, accountId || '');
-            }
+            console.log('[导入调试] 文件读取完成, 大小:', event.target.result ? event.target.result.byteLength || event.target.result.length : 0);
+            parseExcelFileAutoDetect(new Uint8Array(event.target.result), accountId || '');
         };
-
-        if (isExcel) {
-            reader.readAsArrayBuffer(file);
-        } else {
-            reader.readAsText(file);
-        }
+        reader.readAsArrayBuffer(file);
     };
     input.click();
 }
