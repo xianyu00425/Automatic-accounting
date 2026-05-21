@@ -8115,13 +8115,84 @@ function importFromFile() {
         };
 
         // 统一使用 XLSX 库解析所有文件格式（CSV + Excel），消除 CSV 专用解析器的 bug
+        // CSV文件：先检测编码（UTF-8/GBK）并转换为字符串，再传给XLSX解析
+        // Excel文件：直接传递二进制数据
         reader.onload = function(event) {
-            console.log('[导入调试] 文件读取完成, 大小:', event.target.result ? event.target.result.byteLength || event.target.result.length : 0);
-            parseExcelFileAutoDetect(new Uint8Array(event.target.result), accountId || '');
+            const buffer = event.target.result;
+            const fileName = file.name;
+            console.log('[导入调试] 文件读取完成, 大小:', buffer ? buffer.byteLength || buffer.length : 0);
+
+            if (fileName.toLowerCase().endsWith('.csv')) {
+                // CSV文件：尝试编码检测与转换（支持GBK）
+                const decoded = tryDecodeCSV(buffer, fileName);
+                if (decoded) {
+                    console.log('[导入调试] CSV已解码为字符串, 长度:', decoded.length);
+                    parseExcelFileAutoDetect(decoded, accountId || '');
+                } else {
+                    parseExcelFileAutoDetect(new Uint8Array(buffer), accountId || '');
+                }
+            } else {
+                // Excel文件：直接解析二进制数据
+                parseExcelFileAutoDetect(new Uint8Array(buffer), accountId || '');
+            }
         };
         reader.readAsArrayBuffer(file);
     };
     input.click();
+}
+
+// GBK编码检测与转换：支持支付宝模版2等GBK编码的CSV文件
+// 浏览器TextDecoder已内置GBK编码支持（Chrome/Firefox/Edge均可用）
+function tryDecodeCSV(buffer, filename) {
+    const name = filename.toLowerCase();
+    if (!name.endsWith('.csv')) return null;
+
+    const bytes = new Uint8Array(buffer);
+
+    // 1. UTF-8 BOM
+    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+        return new TextDecoder('utf-8').decode(bytes);
+    }
+    // 2. UTF-16 LE BOM
+    if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+        return new TextDecoder('utf-16le').decode(bytes);
+    }
+    // 3. UTF-16 BE BOM
+    if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+        return new TextDecoder('utf-16be').decode(bytes);
+    }
+
+    // 4. 无BOM：通过高字节比例判断编码
+    // UTF-8纯英文<5%，混合中文20-40%；GBK中文≈50%
+    const sample = bytes.slice(0, 4096);
+    let highBytes = 0;
+    for (let i = 0; i < sample.length; i++) {
+        if (sample[i] > 0x7F) highBytes++;
+    }
+    const ratio = highBytes / sample.length;
+
+    console.log('[编码检测] 高字节比例:', (ratio * 100).toFixed(1) + '%');
+
+    // 5. <5% 高字节 → 纯ASCII/UTF-8
+    if (ratio < 0.05) {
+        return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    // 6. >25% 高字节 → 尝试GBK解码
+    try {
+        const decoded = new TextDecoder('gbk').decode(bytes);
+        // 验证：解码后应该包含中文账单关键字
+        if (decoded.includes('交易') || decoded.includes('金额') || decoded.includes('时间') ||
+            decoded.includes('商品') || decoded.includes('收') || decoded.includes('支')) {
+            console.log('[编码检测] 使用GBK编码解码成功');
+            return decoded;
+        }
+    } catch (e) {
+        console.log('[编码检测] GBK解码失败，回退UTF-8:', e.message);
+    }
+
+    // 7. 回退到UTF-8
+    return new TextDecoder('utf-8').decode(bytes);
 }
 
 // 自动检测模板类型（基于CSV表头）
@@ -8146,15 +8217,26 @@ function parseCSVFileAutoDetect(content, accountId) {
 }
 
 // 自动检测模板类型（基于Excel表头）
-function parseExcelFileAutoDetect(data, accountId) {
+// input 可以是 Uint8Array（Excel文件）或 string（已解码的CSV内容）
+function parseExcelFileAutoDetect(input, accountId) {
     try {
-        console.log('[导入调试] parseExcelFileAutoDetect 开始, data长度:', data ? data.byteLength : 'null');
+        console.log('[导入调试] parseExcelFileAutoDetect 开始, input类型:', typeof input,
+            typeof input === 'string' ? '长度:' + input.length : 'byteLength:' + (input ? input.byteLength : 'null'));
         if (typeof XLSX === 'undefined') {
             showImportError('Excel 解析库未加载', '请刷新页面后重试，确保网络连接正常。', 'XLSX library not loaded');
             return;
         }
-        const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
-        console.log('[导入调试] workbook加载成功, sheets:', workbook.SheetNames);
+
+        let workbook;
+        if (typeof input === 'string') {
+            // CSV文件：已解码为UTF-8字符串，直接解析
+            workbook = XLSX.read(input, { type: 'string' });
+            console.log('[导入调试] CSV字符串解析完成, sheets:', workbook.SheetNames);
+        } else {
+            // Excel文件：解析二进制数据
+            workbook = XLSX.read(new Uint8Array(input), { type: 'array' });
+            console.log('[导入调试] workbook加载成功, sheets:', workbook.SheetNames);
+        }
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
         console.log('[导入调试] jsonData行数:', jsonData.length, '首行:', jsonData[0]);
@@ -8290,7 +8372,7 @@ function detectTemplateFromHeaders(headers) {
     // 京东：包含"收/付款方式"、"交易说明"、"交易状态"
     if (headerStr.includes('收/付款方式') && headerStr.includes('交易说明') && headerStr.includes('交易状态')) return 'jd';
     // 支付宝：包含"收/支"、"金额"、"交易对方"、"商品说明"
-    if (headerStr.includes('商品说明') && headerStr.includes('收付款方式')) return 'alipay';
+    if (headerStr.includes('商品说明') && headerStr.includes('付款方式')) return 'alipay';
     // 微信支付：包含"收/支"、"金额 (元)"、"交易对方"、"商品"、"支付方式"
     if (headerStr.includes('金额 (元)') && headerStr.includes('交易对方') && headerStr.includes('商品') && !headerStr.includes('商品说明')) return 'wechat';
     // 默认模板：包含"交易时间"、"交易类型"、"交易对方"、"商品"、"收/支"、"金额 (元)"、"支付方式"
@@ -8304,7 +8386,12 @@ function detectTemplateFromHeaders(headers) {
 // 预览和导入功能（简化版）
 function parseExcelFilePreview(data, accountId, template) {
     try {
-        const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
+        let workbook;
+        if (typeof data === 'string') {
+            workbook = XLSX.read(data, { type: 'string' });
+        } else {
+            workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
+        }
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
@@ -8462,6 +8549,8 @@ function matchAccountByPaymentMethod(payMethod, template) {
         '微信支付': '微信',
         '微信': '微信',
         '支付宝': '支付宝',
+        '花呗': '花呗',
+        '余额': '支付宝',
         '美团月付': '美团月付',
         '京东白条': '京东白条',
         '工商银行': '工商银行',
