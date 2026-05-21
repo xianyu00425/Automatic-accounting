@@ -8054,8 +8054,8 @@ function selectTemplateAndImport(type) {
     const template = document.getElementById('import-template').value;
     const accountId = document.getElementById('import-account').value;
 
-    // 美团/京东模板支持自动账户匹配，不需要选择账户
-    if (template !== 'auto' && template !== 'meituan' && template !== 'jd') {
+    // 美团/京东/支付宝模板支持自动账户匹配，不需要选择账户
+    if (template !== 'auto' && template !== 'meituan' && template !== 'jd' && template !== 'alipay') {
         if (!accountId) {
             showToast('请先选择账户');
             return;
@@ -8557,7 +8557,7 @@ function parseExcelRow(row, headers, accountId, fileType) {
 // 美团模板专用解析
 function parseMeituanRow(data, row, headers, accountId) {
     // 美团表头：交易创建时间(0), 交易成功时间(1), 交易类型(2), 订单标题(3), 收/支(4), 支付方式(5), 订单金额(6), 实付金额(7)
-    const timeValue = row[0];
+    const timeValue = row[1]; // 使用交易成功时间
     const tradeType = String(row[2] || '').trim();
     const title = String(row[3] || '').trim();
     const incomeExpense = String(row[4] || '').trim();
@@ -8585,10 +8585,18 @@ function parseMeituanRow(data, row, headers, accountId) {
     const amount = parseAmountValue(amountValue);
     if (amount === 0) return null;
 
+    // 格式化日期为人类可读格式
+    const dateStr = date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0') + ' ' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0') + ':' +
+        String(date.getSeconds()).padStart(2, '0');
+
     return {
         id: generateId(),
         date: date.toISOString(),
-        dateRaw: String(timeValue),
+        dateRaw: dateStr,
         amount: type === 'transfer' ? -amount : amount,
         type,
         counterparty: title,
@@ -8597,7 +8605,7 @@ function parseMeituanRow(data, row, headers, accountId) {
         categoryRaw: title,
         rawData: {
             fileType: 'meituan',
-            tradeTime: String(timeValue),
+            tradeTime: dateStr,
             tradeType: tradeType,
             counterpartyRaw: title,
             product: title,
@@ -8667,7 +8675,7 @@ function parseJdRow(data, row, headers, accountId) {
 
 // 支付宝模板专用解析
 function parseAlipayRow(data, row, headers, accountId) {
-    // 支付宝表头：交易时间(0), 交易分类(1), 交易对方(2), 对方账号(3), 商品说明(4), 收/支(5), 金额(6), 收/付款方式(7)...
+    // 支付宝表头：交易时间,交易分类,交易对方,对方账号,商品说明,收/支,金额,收/付款方式
     const timeIndex = headers.findIndex(h => String(h || '').includes('时间') || String(h || '').includes('日期'));
     const amountIndex = headers.findIndex(h => String(h || '').includes('金额'));
     const ieIndex = headers.findIndex(h => String(h || '').includes('收/支'));
@@ -8677,8 +8685,9 @@ function parseAlipayRow(data, row, headers, accountId) {
     const amountValue = amountIndex !== -1 ? row[amountIndex] : null;
     const incomeExpense = ieIndex !== -1 ? String(row[ieIndex] || '').trim() : '';
     const counterparty = counterpartyIndex !== -1 ? String(row[counterpartyIndex] || '').trim() : '';
-    const payMethod = headers.findIndex(h => String(h || '').includes('收付款方式')) !== -1
-        ? String(row[headers.findIndex(h => String(h || '').includes('收付款方式'))] || '').trim()
+    const payMethodIdx = headers.findIndex(h => String(h || '').includes('收付款') || String(h || '').includes('方式'));
+    const payMethod = payMethodIdx !== -1
+        ? String(row[payMethodIdx] || '').trim()
         : '';
 
     if (!timeValue || !amountValue) return null;
@@ -8700,10 +8709,18 @@ function parseAlipayRow(data, row, headers, accountId) {
     const amount = parseAmountValue(amountValue);
     if (amount === 0) return null;
 
+    // 格式化日期为人类可读格式
+    const dateStr = date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0') + ' ' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0') + ':' +
+        String(date.getSeconds()).padStart(2, '0');
+
     return {
         id: generateId(),
         date: date.toISOString(),
-        dateRaw: String(timeValue),
+        dateRaw: dateStr,
         amount: type === 'transfer' ? -amount : amount,
         type,
         counterparty: counterparty,
@@ -8712,7 +8729,7 @@ function parseAlipayRow(data, row, headers, accountId) {
         categoryRaw: data['商品说明'] || data['交易分类'] || '',
         rawData: {
             fileType: 'alipay',
-            tradeTime: String(timeValue),
+            tradeTime: dateStr,
             tradeType: data['交易分类'] || '',
             counterpartyRaw: counterparty,
             product: data['商品说明'] || '',
