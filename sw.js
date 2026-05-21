@@ -2,7 +2,7 @@
 // 策略：HTML 文件每次加载都从网络获取（确保用户看到最新版本）
 // 静态资源（图标等）使用缓存
 
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const CACHE_NAME = 'accounting-app-' + CACHE_VERSION;
 
 // 只缓存静态资源，不缓存 HTML 主文件

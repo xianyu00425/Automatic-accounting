@@ -12801,38 +12801,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 检查更新 — 用于PWA桌面应用更新
             function checkForUpdate() {
-                if (!('serviceWorker' in navigator)) {
-                    showToast('当前浏览器不支持离线更新');
-                    return;
-                }
-                // 强制清除所有缓存 + 取消Service Worker + 硬刷新
-                navigator.serviceWorker.getRegistration().then(function(reg) {
-                    if (reg) {
-                        // 发送消息给SW清除所有缓存
-                        if (reg.active) {
+                // 清除 localStorage 中的版本标记
+                localStorage.removeItem('app-version');
+
+                // 清除所有 Service Worker 和缓存
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        for (var i = 0; i < registrations.length; i++) {
+                            registrations[i].unregister();
+                        }
+                    });
+
+                    // 发送消息给所有 SW 清除缓存
+                    navigator.serviceWorker.getRegistration().then(function(reg) {
+                        if (reg && reg.active) {
                             reg.active.postMessage({ type: 'CLEAR_ALL_CACHE' });
                         }
-                        // 注销Service Worker
-                        return reg.unregister();
-                    }
-                }).then(function() {
-                    // 清除Cache Storage中所有缓存
-                    if ('caches' in window) {
-                        return caches.keys().then(function(names) {
-                            return Promise.all(names.map(function(name) {
-                                return caches.delete(name);
-                            }));
-                        });
-                    }
-                }).then(function() {
-                    showToast('缓存已清除，正在重新加载...');
-                    // 硬刷新（绕过浏览器缓存）
-                    setTimeout(function() {
-                        window.location.href = window.location.pathname + '?_=' + Date.now();
-                    }, 500);
-                }).catch(function() {
-                    window.location.reload(true);
-                });
+                    });
+                }
+
+                // 清除 Cache Storage
+                if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                        for (var i = 0; i < names.length; i++) {
+                            caches.delete(names[i]);
+                        }
+                    });
+                }
+
+                showToast('缓存已清除，正在加载最新版本...');
+
+                // 延迟后强制跳转到最新版本（使用时间戳避免缓存）
+                setTimeout(function() {
+                    window.location.href = window.location.pathname.split('?')[0] + '?_=' + Date.now();
+                }, 800);
             }
             window.checkForUpdate = checkForUpdate;
 
