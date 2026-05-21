@@ -8414,7 +8414,7 @@ function parseAmountValue(value) {
     if (typeof value === 'number') return Math.abs(value);
     const str = String(value).trim();
     if (!str || str === '' || str === '-') return 0;
-    const cleaned = str.replace(/[￥￥,\s]/g, '');
+    const cleaned = str.replace(/[￥¥,\s]/g, '');
     const amount = parseFloat(cleaned);
     if (isNaN(amount)) {
         console.warn('金额解析失败:', str, '清理后:', cleaned);
@@ -8766,7 +8766,7 @@ function parseCSVRow(row, headers, accountId, fileType) {
         counterparty = String(data['交易对方'] || '').trim();
     } else if (fileType === 'alipay') {
         date = parseAlipayDate(data['交易时间']);
-        amount = parseFloat(String(data['金额'] || '').replace(/[￥￥,\s]/g, '')) || 0;
+        amount = parseFloat(String(data['金额'] || '').replace(/[￥¥,\s]/g, '')) || 0;
         type = (String(data['收/支'] || '').includes('收入')) ? 'income' : 'expense';
         counterparty = String(data['交易对方'] || '').trim();
     }
@@ -8819,7 +8819,7 @@ function parseCSVRowPreview(values, headers, accountId, fileType) {
         counterparty = String(data['交易对方'] || '').trim();
     } else if (fileType === 'alipay') {
         date = parseAlipayDate(data['交易时间']);
-        amount = parseFloat(String(data['金额'] || '').replace(/[￥￥,\s]/g, '')) || 0;
+        amount = parseFloat(String(data['金额'] || '').replace(/[￥¥,\s]/g, '')) || 0;
         type = (String(data['收/支'] || '').includes('收入')) ? 'income' : 'expense';
         counterparty = String(data['交易对方'] || '').trim();
     }
