@@ -8108,11 +8108,15 @@ function importFromFile() {
         const reader = new FileReader();
         const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
 
+        console.log('[导入调试] 选择文件:', file.name, '大小:', file.size, '类型:', isExcel ? 'Excel' : 'CSV', 'accountId:', accountId);
+
         reader.onerror = function() {
+            console.error('[导入调试] FileReader error:', reader.error);
             showImportError('文件读取失败', '请确认文件未被占用、未损坏，且有读取权限。', 'FileReader error code: ' + (reader.error ? reader.error.code : 'unknown'));
         };
 
         reader.onload = function(event) {
+            console.log('[导入调试] 文件读取完成, result类型:', typeof event.target.result, '大小:', event.target.result ? event.target.result.byteLength || event.target.result.length : 0);
             if (isExcel) {
                 parseExcelFileAutoDetect(event.target.result, accountId || '');
             } else {
@@ -8153,17 +8157,24 @@ function parseCSVFileAutoDetect(content, accountId) {
 // 自动检测模板类型（基于Excel表头）
 function parseExcelFileAutoDetect(data, accountId) {
     try {
+        console.log('[导入调试] parseExcelFileAutoDetect 开始, data长度:', data ? data.byteLength : 'null');
         if (typeof XLSX === 'undefined') {
             showImportError('Excel 解析库未加载', '请刷新页面后重试，确保网络连接正常。', 'XLSX library not loaded');
             return;
         }
         const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
+        console.log('[导入调试] workbook加载成功, sheets:', workbook.SheetNames);
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-        if (jsonData.length > 0) {
-            // 查找真实表头行：扫描前10行，找包含账单关键字的行
-            let headerRowIdx = 0;
-            for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+        console.log('[导入调试] jsonData行数:', jsonData.length, '首行:', jsonData[0]);
+        if (jsonData.length === 0) {
+            showImportError('Excel 文件中没有数据', '文件可能为空或格式不正确。请确认导出了包含交易记录的账单。', 'jsonData.length = 0');
+            return;
+        }
+
+        // 查找真实表头行：扫描前30行，找包含账单关键字的行（美团/京东文件有大量元数据行在前）
+        let headerRowIdx = 0;
+        for (let i = 0; i < Math.min(30, jsonData.length); i++) {
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
                 const rowStr = row.map(c => String(c || '').trim()).join(',');
@@ -8181,13 +8192,16 @@ function parseExcelFileAutoDetect(data, accountId) {
             console.log('[模板检测] 表头行索引:', headerRowIdx, '检测到模板:', template, '表头:', headers);
             console.log('[模板检测] 原始表头行(前10个):', jsonData[headerRowIdx]);
 
-            // 模板检测校验：至少包含时间和金额类字段
+            // 模板检测校验：至少包含时间或金额类字段之一
             const hasTime = headers.some(h => String(h).includes('时间') || String(h).includes('日期'));
             const hasAmount = headers.some(h => String(h).includes('金额'));
-            if (!hasTime || !hasAmount) {
+            // 如果既没有时间也没有金额字段，说明检测到的不是有效表头行
+            if (!hasTime && !hasAmount) {
                 showImportError('无法识别文件格式', '未能找到可识别的表头（需要包含"交易时间"、"金额"等字段）。请确认导出的是平台原始账单，支持：美团、京东、支付宝、微信支付、默认格式。', '检测到的表头: [' + headers.slice(0, 10).join(', ') + ']');
                 return;
             }
+
+            console.log('[模板检测] 校验通过: hasTime=' + hasTime + ', hasAmount=' + hasAmount);
 
             // 查找数据起始行（表头行的下一行）
             let startRow = headerRowIdx + 1;
@@ -8261,7 +8275,6 @@ function parseExcelFileAutoDetect(data, accountId) {
 
             previewData = { transactions, errors: [], skipped: 0, accountId, fileType: template, accountUnmatched: accountUnmatched };
             showPreviewModal();
-        }
     } catch (err) {
         let reason, guidance;
         if (err.message && err.message.includes('Corrupted')) {
@@ -8307,9 +8320,9 @@ function parseExcelFilePreview(data, accountId, template) {
         const transactions = [];
         const accountUnmatched = [];
 
-        // 查找真实表头行：扫描前10行，找包含账单关键字的行
+        // 查找真实表头行：扫描前30行，找包含账单关键字的行（美团/京东文件有大量元数据行在前）
         let headerRowIdx = 0;
-        for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+        for (let i = 0; i < Math.min(30, jsonData.length); i++) {
             const row = jsonData[i];
             if (!row || row.length === 0) continue;
             const rowStr = row.map(c => String(c || '').trim()).join(',');
@@ -8490,14 +8503,19 @@ function parseExcelRow(row, headers, accountId, fileType) {
         return parseJdRow(data, row, headers, accountId);
     }
 
+    // 支付宝模板专用解析
+    if (fileType === 'alipay') {
+        return parseAlipayRow(data, row, headers, accountId);
+    }
+
     // 智能查找列
     const amountIndex = findAmountColumn(headers);
     const typeIndex = headers.findIndex(h => String(h || '').includes('收/支') || String(h || '').includes('收支'));
     const timeIndex = headers.findIndex(h => String(h || '').includes('时间') || String(h || '').includes('日期'));
     const counterpartyIndex = headers.findIndex(h => String(h || '').includes('对方') || String(h || '').includes('商户'));
 
-    if (timeIndex === -1 || amountIndex === -1 || counterpartyIndex === -1) {
-        console.warn('缺少必要列:', { timeIndex, amountIndex, counterpartyIndex });
+    if (timeIndex === -1 || amountIndex === -1) {
+        console.warn('缺少必要列（时间或金额）:', { timeIndex, amountIndex, counterpartyIndex, headers });
         return null;
     }
 
@@ -8505,7 +8523,7 @@ function parseExcelRow(row, headers, accountId, fileType) {
     const timeValue = row[timeIndex];
     const amountValue = row[amountIndex];
     const typeValue = typeIndex !== -1 ? row[typeIndex] : null;
-    const counterpartyValue = row[counterpartyIndex];
+    const counterpartyValue = counterpartyIndex !== -1 ? row[counterpartyIndex] : null;
 
     // 解析
     let date = fileType === 'wechat' ? parseWechatDate(timeValue) : parseAlipayDate(timeValue);
@@ -8515,10 +8533,10 @@ function parseExcelRow(row, headers, accountId, fileType) {
     // 转账类型金额为负数
     const amount = type === 'transfer' ? -parsedAmount : parsedAmount;
 
-    const counterparty = String(counterpartyValue || '').trim();
+    const counterparty = String(counterpartyValue || data['交易对方'] || data['对方'] || data['商户名称'] || '').trim();
 
-    if (!date || !counterparty || amount === 0) {
-        console.warn('交易数据无效:', { date, counterparty, amount });
+    if (!date || amount === 0) {
+        console.warn('交易数据无效:', { date, counterparty, amount, timeValue });
         return null;
     }
 
@@ -8649,6 +8667,64 @@ function parseJdRow(data, row, headers, accountId) {
             tradeType: status,
             counterpartyRaw: merchant,
             product: description,
+            incomeExpense: incomeExpense,
+            amountRaw: String(amountValue),
+            payMethod: payMethod
+        }
+    };
+}
+
+// 支付宝模板专用解析
+function parseAlipayRow(data, row, headers, accountId) {
+    // 支付宝表头：交易时间(0), 交易分类(1), 交易对方(2), 对方账号(3), 商品说明(4), 收/支(5), 金额(6), 收/付款方式(7)...
+    const timeIndex = headers.findIndex(h => String(h || '').includes('时间') || String(h || '').includes('日期'));
+    const amountIndex = headers.findIndex(h => String(h || '').includes('金额'));
+    const ieIndex = headers.findIndex(h => String(h || '').includes('收/支'));
+    const counterpartyIndex = headers.findIndex(h => String(h || '').includes('对方'));
+
+    const timeValue = timeIndex !== -1 ? row[timeIndex] : null;
+    const amountValue = amountIndex !== -1 ? row[amountIndex] : null;
+    const incomeExpense = ieIndex !== -1 ? String(row[ieIndex] || '').trim() : '';
+    const counterparty = counterpartyIndex !== -1 ? String(row[counterpartyIndex] || '').trim() : '';
+    const payMethod = headers.findIndex(h => String(h || '').includes('收付款方式')) !== -1
+        ? String(row[headers.findIndex(h => String(h || '').includes('收付款方式'))] || '').trim()
+        : '';
+
+    if (!timeValue || !amountValue) return null;
+
+    const date = parseAlipayDate(timeValue);
+    if (!date) return null;
+
+    let type;
+    if (incomeExpense.includes('收入')) {
+        type = 'income';
+    } else if (incomeExpense.includes('支出') || incomeExpense.includes('付款')) {
+        type = 'expense';
+    } else if (incomeExpense === '不计收支') {
+        type = 'transfer';
+    } else {
+        type = 'expense';
+    }
+
+    const amount = parseAmountValue(amountValue);
+    if (amount === 0) return null;
+
+    return {
+        id: generateId(),
+        date: date.toISOString(),
+        dateRaw: String(timeValue),
+        amount: type === 'transfer' ? -amount : amount,
+        type,
+        counterparty: counterparty,
+        accountId,
+        isMatched: false,
+        categoryRaw: data['商品说明'] || data['交易分类'] || '',
+        rawData: {
+            fileType: 'alipay',
+            tradeTime: String(timeValue),
+            tradeType: data['交易分类'] || '',
+            counterpartyRaw: counterparty,
+            product: data['商品说明'] || '',
             incomeExpense: incomeExpense,
             amountRaw: String(amountValue),
             payMethod: payMethod
