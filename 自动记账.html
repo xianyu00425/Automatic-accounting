@@ -6572,14 +6572,10 @@ const AppState = {
             const category = categories.find(c => c.id === t.categoryId);
             const catType = category ? category.type : null;
 
-            // 优先使用分类类型；无分类时使用transaction.type作为后备
+            // 仅按分类类型统计，不按费用类型
             if (catType === 'income') {
                 income += amount;
             } else if (catType === 'expense') {
-                expense += amount;
-            } else if (t.type === 'income') {
-                income += amount;
-            } else if (t.type === 'expense') {
                 expense += amount;
             }
         });
