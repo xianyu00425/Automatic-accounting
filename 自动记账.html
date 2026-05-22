@@ -1382,6 +1382,37 @@ body {
     flex: 1;
 }
 
+/* 待处理金额正负号选择器 */
+.amount-sign-selector {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.amount-sign-selector label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 26px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    user-select: none;
+}
+.amount-sign-selector label:has(input:checked) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+.amount-sign-selector input[type="radio"] {
+    display: none;
+}
+
 /* 全屏弹窗 */
 .modal-full .modal-content {
     max-height: 100dvh;
@@ -6382,7 +6413,7 @@ function migrateCreditToPayable() {
 
 // 应用状态管理
 const AppState = {
-    currentMonth: new Date(2026, 2, 1), // 初始化为2026年3月
+    currentMonth: new Date(), // 初始化为当前月份
     homeDateFilter: null,         // 首页日期筛选 { start: '2025-04-01', end: '2025-04-30' }
     homeMonthFilter: null,        // 首页月份筛选 { type: 'single'|'months'|'year', value: [...] }
     transactionDateFilter: null,  // 账单列表日期筛选 { start: '2025-04-01', end: '2025-04-30' }
@@ -6522,24 +6553,36 @@ const AppState = {
         this.saveClassificationHistory(history);
     },
 
-    // 【新增功能 1】获取本月统计（自动更新）- V9支持转账
+    // 【新增功能 1】获取本月统计（按分类类型统计）- V10改进
     getMonthlyStats() {
         const transactions = this.getTransactions();
         const year = this.currentMonth.getFullYear();
         const month = this.currentMonth.getMonth();
+        const categories = this.getCategories();
 
         const monthTransactions = transactions.filter(t => {
             const date = new Date(t.date);
             return date.getFullYear() === year && date.getMonth() === month;
         });
 
-        const income = monthTransactions
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        let income = 0, expense = 0;
+        monthTransactions.forEach(t => {
+            if (t.type === 'transfer') return; // 转账不计入
+            const amount = Math.abs(t.amount);
+            const category = categories.find(c => c.id === t.categoryId);
+            const catType = category ? category.type : null;
 
-        const expense = monthTransactions
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+            // 优先使用分类类型；无分类时使用transaction.type作为后备
+            if (catType === 'income') {
+                income += amount;
+            } else if (catType === 'expense') {
+                expense += amount;
+            } else if (t.type === 'income') {
+                income += amount;
+            } else if (t.type === 'expense') {
+                expense += amount;
+            }
+        });
 
         // 转账不计入收支统计
         return {
@@ -6668,13 +6711,23 @@ const AppState = {
             return dateStr >= startDate && dateStr <= endDate;
         });
 
-        const income = filteredTransactions
-            .filter(function(t) { return t.type === 'income'; })
-            .reduce(function(sum, t) { return sum + Math.abs(t.amount); }, 0);
-
-        const expense = filteredTransactions
-            .filter(function(t) { return t.type === 'expense'; })
-            .reduce(function(sum, t) { return sum + Math.abs(t.amount); }, 0);
+        const categories = this.getCategories();
+        let income = 0, expense = 0;
+        filteredTransactions.forEach(function(t) {
+            if (t.type === 'transfer') return;
+            var amount = Math.abs(t.amount);
+            var category = categories.find(function(c) { return c.id === t.categoryId; });
+            var catType = category ? category.type : null;
+            if (catType === 'income') {
+                income += amount;
+            } else if (catType === 'expense') {
+                expense += amount;
+            } else if (t.type === 'income') {
+                income += amount;
+            } else if (t.type === 'expense') {
+                expense += amount;
+            }
+        });
 
         return {
             income,
@@ -6694,17 +6747,28 @@ const AppState = {
         if (this.homeMonthFilter && this.homeMonthFilter.type) {
             const transactions = this.getTransactions();
             const monthKeys = this.homeMonthFilter.value;
+            const categories = this.getCategories();
             const filteredTransactions = transactions.filter(function(t) {
                 var d = new Date(t.date);
                 var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
                 return monthKeys.indexOf(key) !== -1;
             });
-            const income = filteredTransactions
-                .filter(function(t) { return t.type === 'income'; })
-                .reduce(function(sum, t) { return sum + Math.abs(t.amount); }, 0);
-            const expense = filteredTransactions
-                .filter(function(t) { return t.type === 'expense'; })
-                .reduce(function(sum, t) { return sum + Math.abs(t.amount); }, 0);
+            let income = 0, expense = 0;
+            filteredTransactions.forEach(function(t) {
+                if (t.type === 'transfer') return;
+                const amount = Math.abs(t.amount);
+                const category = categories.find(function(c) { return c.id === t.categoryId; });
+                const catType = category ? category.type : null;
+                if (catType === 'income') {
+                    income += amount;
+                } else if (catType === 'expense') {
+                    expense += amount;
+                } else if (t.type === 'income') {
+                    income += amount;
+                } else if (t.type === 'expense') {
+                    expense += amount;
+                }
+            });
             return {
                 income,
                 expense,
@@ -10775,7 +10839,13 @@ function showProcessModal(transactionId) {
     var isWechat = rd.fileType === 'wechat';
     var html = '<div class="process-preview-row"><span>交易时间：</span><strong>' + (t.dateRaw || formatDate(t.date)) + '</strong></div>';
     html += '<div class="process-preview-row"><span>交易对方：</span><strong>' + (t.counterparty || '-') + '</strong></div>';
-    html += '<div class="process-preview-row"><span>金额(元)：</span><strong>' + formatAmount(t.amount, t.type) + '</strong></div>';
+    var amountSign = t.type === 'income' ? 'positive' : 'negative';
+    html += '<div class="process-preview-row"><span>金额(元)：</span>';
+    html += '<div class="amount-sign-selector">';
+    html += '<label><input type="radio" name="process-amount-sign" value="auto"> 默认</label>';
+    html += '<label><input type="radio" name="process-amount-sign" value="positive" ' + (amountSign === 'positive' ? 'checked' : '') + '> +</label>';
+    html += '<label><input type="radio" name="process-amount-sign" value="negative" ' + (amountSign === 'negative' ? 'checked' : '') + '> −</label>';
+    html += '</div><strong id="process-amount-display">' + formatAmount(t.amount, t.type) + '</strong></div>';
 
     if (isWechat) {
         html += '<div class="process-preview-row"><span>交易类型：</span><strong>' + (rd.tradeType || '-') + '</strong></div>';
@@ -11073,7 +11143,15 @@ function saveTransaction() {
             showToast('请选择一个分类'); return;
         }
 
-        // 分类仅变更分类，保留原始收支类型和金额符号
+        // 应用正负号选择
+        var signRadio = document.querySelector('input[name="process-amount-sign"]:checked');
+        if (signRadio && signRadio.value !== 'auto') {
+            // 用户手动选择了正负号
+            transactions[idx].type = signRadio.value === 'positive' ? 'income' : 'expense';
+            transactions[idx].amount = originalAmount; // 始终存储正值
+        }
+        // 否则保留原始收支类型和金额符号
+
         transactions[idx].categoryId = selectedProcessCategoryId;
         transactions[idx].isMatched = true;
 
