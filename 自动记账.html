@@ -4784,6 +4784,9 @@ body {
                         <button class="btn-icon btn-icon-sm" onclick="openCalendar('transactions')" title="按日期筛选">
                             <i class="fas fa-calendar-alt"></i>
                         </button>
+                        <button class="btn-icon btn-icon-sm" onclick="openMonthSelect('transactions')" title="按年/多月份筛选">
+                            <i class="fas fa-calendar-week"></i>
+                        </button>
                     </div>
                     <!-- 快速筛选标签 -->
                     <div class="quick-filter-tags" id="quick-filter-tags">
@@ -6417,6 +6420,7 @@ const AppState = {
     homeDateFilter: null,         // 首页日期筛选 { start: '2025-04-01', end: '2025-04-30' }
     homeMonthFilter: null,        // 首页月份筛选 { type: 'single'|'months'|'year', value: [...] }
     transactionDateFilter: null,  // 账单列表日期筛选 { start: '2025-04-01', end: '2025-04-30' }
+    transactionMonthFilter: null, // 账单列表月份筛选 { type: 'year'|'months', value: [...] }
     billCategoryFilter: null,     // 账单分类筛选
     selectedTransaction: null,
     selectedCategory: null,
@@ -7446,6 +7450,15 @@ function renderTransactions() {
             return dateStr >= filterStart && dateStr <= filterEnd;
         });
     }
+    // 应用月份筛选（年/多月份）
+    if (AppState.transactionMonthFilter && AppState.transactionMonthFilter.value) {
+        var monthKeys = AppState.transactionMonthFilter.value;
+        transactions = transactions.filter(function(t) {
+            var d = new Date(t.date);
+            var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+            return monthKeys.indexOf(key) !== -1;
+        });
+    }
 
     // 搜索过滤
     if (searchQuery) {
@@ -7603,11 +7616,13 @@ function applyQuickFilter(type) {
         typeFilter.value = 'all';
         categoryFilter.value = 'all';
         AppState.transactionDateFilter = null;
+        AppState.transactionMonthFilter = null;
         updateDateFilterTags();
     } else if (type === 'today') {
         var today = new Date();
         var dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
         AppState.transactionDateFilter = { start: dateStr, end: dateStr };
+        AppState.transactionMonthFilter = null;
         updateDateFilterTags();
     } else if (type === 'week') {
         var now = new Date();
@@ -7617,15 +7632,18 @@ function applyQuickFilter(type) {
         var weekEnd = new Date(now);
         var fmt = function(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
         AppState.transactionDateFilter = { start: fmt(weekStart), end: fmt(weekEnd) };
+        AppState.transactionMonthFilter = null;
         updateDateFilterTags();
     } else if (type === 'month') {
         var m = new Date();
         var mStr = m.getFullYear() + '-' + String(m.getMonth()+1).padStart(2,'0');
         AppState.transactionDateFilter = { start: mStr + '-01', end: m.getFullYear() + '-' + String(m.getMonth()+1).padStart(2,'0') + '-' + String(new Date(m.getFullYear(), m.getMonth()+1, 0).getDate()).padStart(2,'0') };
+        AppState.transactionMonthFilter = null;
         updateDateFilterTags();
     } else if (type === 'default') {
         categoryFilter.value = 'default';
         AppState.transactionDateFilter = null;
+        AppState.transactionMonthFilter = null;
         updateDateFilterTags();
     }
 
@@ -7655,6 +7673,7 @@ function changeMonth(delta) {
     AppState.homeDateFilter = null;
     AppState.homeMonthFilter = null;
     AppState.transactionDateFilter = null;
+    AppState.transactionMonthFilter = null;
     updateCurrentMonth();
     renderHome();
     if (document.getElementById('page-transactions').classList.contains('active')) {
@@ -7711,8 +7730,21 @@ function openMonthSelect(source) {
     MonthSelectState.source = source;
     MonthSelectState.viewYear = AppState.currentMonth.getFullYear();
 
-    // 加载已有筛选
-    if (AppState.homeMonthFilter && AppState.homeMonthFilter.type === 'year') {
+    if (source === 'transactions') {
+        // 账单列表月份筛选
+        if (AppState.transactionMonthFilter && AppState.transactionMonthFilter.type === 'year') {
+            MonthSelectState.viewYear = parseInt(AppState.transactionMonthFilter.value[0].split('-')[0]);
+            MonthSelectState.selectedMonths = ['year-' + MonthSelectState.viewYear];
+        } else if (AppState.transactionMonthFilter && AppState.transactionMonthFilter.type === 'months') {
+            const firstMonth = AppState.transactionMonthFilter.value[0];
+            if (firstMonth) {
+                MonthSelectState.viewYear = parseInt(firstMonth.split('-')[0]);
+            }
+            MonthSelectState.selectedMonths = AppState.transactionMonthFilter.value.slice();
+        } else {
+            MonthSelectState.selectedMonths = [];
+        }
+    } else {
         MonthSelectState.viewYear = parseInt(AppState.homeMonthFilter.value[0].split('-')[0]);
         MonthSelectState.selectedMonths = ['year-' + MonthSelectState.viewYear];
     } else if (AppState.homeMonthFilter && AppState.homeMonthFilter.type === 'months') {
@@ -7833,6 +7865,14 @@ function clearMonthSelect() {
     document.getElementById('month-select-year-btn').classList.remove('active');
     renderMonthSelectGrid();
     // 直接应用
+    if (MonthSelectState.source === 'transactions') {
+        AppState.transactionMonthFilter = null;
+        AppState.transactionDateFilter = null;
+        renderTransactions();
+        updateTransactionDateTags();
+        closeMonthSelectDirect();
+        return;
+    }
     AppState.homeMonthFilter = null;
     renderHome();
     closeMonthSelectDirect();
@@ -7852,6 +7892,25 @@ function applyMonthSelect() {
         } else {
             monthKeys.push(m);
         }
+    }
+
+    if (MonthSelectState.source === 'transactions') {
+        if (monthKeys.length === 0) {
+            AppState.transactionMonthFilter = null;
+        } else {
+            monthKeys = Array.from(new Set(monthKeys)).sort();
+            const isFullYear = monthKeys.length === 12;
+            AppState.transactionMonthFilter = {
+                type: isFullYear ? 'year' : 'months',
+                value: monthKeys
+            };
+        }
+        // 清除日期范围筛选
+        AppState.transactionDateFilter = null;
+        renderTransactions();
+        updateTransactionDateTags();
+        closeMonthSelectDirect();
+        return;
     }
 
     if (monthKeys.length === 0) {
@@ -12949,20 +13008,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 var container = document.getElementById('date-filter-tags');
                 if (!container) return;
                 var filter = AppState.transactionDateFilter;
-                if (!filter || !filter.start) {
+                var monthFilter = AppState.transactionMonthFilter;
+
+                if ((!filter || !filter.start) && (!monthFilter || !monthFilter.value)) {
                     container.style.display = 'none';
                     container.innerHTML = '';
                     return;
                 }
                 container.style.display = 'flex';
-                var html = '<span class="date-tag-all" onclick="openCalendar(\'transactions\')">';
-                html += '<i class="fas fa-calendar-alt"></i> ';
-                if (filter.start === filter.end) {
-                    html += filter.start + ' ';
-                } else {
-                    html += filter.start + ' ~ ' + filter.end + ' ';
+                var html = '';
+
+                // 月份筛选标签
+                if (monthFilter && monthFilter.value) {
+                    var displayText = '';
+                    if (monthFilter.type === 'year') {
+                        displayText = monthFilter.value[0].split('-')[0] + '全年';
+                    } else {
+                        const months = monthFilter.value;
+                        if (months.length === 1) {
+                            displayText = months[0].replace('-', '年') + '月';
+                        } else {
+                            displayText = months.length + '个月 (' + months[0] + ' ~ ' + months[months.length-1] + ')';
+                        }
+                    }
+                    html += '<span class="date-tag-all" onclick="openMonthSelect(\'transactions\')">';
+                    html += '<i class="fas fa-calendar-alt"></i> ' + displayText + ' ';
+                    html += '<span class="remove" onclick="removeTransactionMonth()">&times;</span></span>';
                 }
-                html += '<span class="remove" onclick="removeTransactionDate()">&times;</span></span>';
+
+                // 日期范围标签
+                if (filter && filter.start) {
+                    html += '<span class="date-tag-all" onclick="openCalendar(\'transactions\')">';
+                    html += '<i class="fas fa-calendar-alt"></i> ';
+                    if (filter.start === filter.end) {
+                        html += filter.start + ' ';
+                    } else {
+                        html += filter.start + ' ~ ' + filter.end + ' ';
+                    }
+                    html += '<span class="remove" onclick="removeTransactionDate()">&times;</span></span>';
+                }
                 container.innerHTML = html;
             }
 
@@ -12978,6 +13062,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateTransactionDateTags();
             }
 
+            function removeTransactionMonth() {
+                AppState.transactionMonthFilter = null;
+                renderTransactions();
+                updateTransactionDateTags();
+            }
+
             // 暴露到全局
             window.openCalendar = openCalendar;
             window.closeCalendar = closeCalendar;
@@ -12989,6 +13079,7 @@ document.addEventListener('DOMContentLoaded', function() {
             window.confirmCalendarSelection = confirmCalendarSelection;
             window.removeHomeDate = removeHomeDate;
             window.removeTransactionDate = removeTransactionDate;
+            window.removeTransactionMonth = removeTransactionMonth;
 
             // 检查更新 — 用于PWA桌面应用更新
             function checkForUpdate() {
