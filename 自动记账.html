@@ -4771,8 +4771,8 @@ body {
                     <div class="filter-bar filter-bar-row filter-row-compact">
                         <select class="filter-select filter-select-sm" id="type-filter" onchange="filterTransactions()">
                             <option value="all">类型</option>
-                            <option value="income">收入</option>
-                            <option value="expense">支出</option>
+                            <option value="income">收入（分类）</option>
+                            <option value="expense">支出（分类）</option>
                             <option value="transfer">转账</option>
                         </select>
                         <select class="filter-select filter-select-sm" id="account-filter" onchange="filterTransactions()">
@@ -6659,12 +6659,19 @@ const AppState = {
             return t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
         });
 
+        const categories = this.getCategories();
         const income = accountTransactions
-            .filter(function(t) { return t.type === 'income'; })
+            .filter(function(t) {
+                var cat = categories.find(function(c) { return c.id === t.categoryId; });
+                return cat && cat.type === 'income';
+            })
             .reduce(function(sum, t) { return sum + Math.abs(t.amount); }, 0);
 
         const expense = accountTransactions
-            .filter(function(t) { return t.type === 'expense'; })
+            .filter(function(t) {
+                var cat = categories.find(function(c) { return c.id === t.categoryId; });
+                return cat && cat.type === 'expense';
+            })
             .reduce(function(sum, t) { return sum + Math.abs(t.amount); }, 0);
 
         // 计算转入转出
@@ -6718,10 +6725,6 @@ const AppState = {
                 income += amount;
             } else if (catType === 'expense') {
                 expense += amount;
-            } else if (t.type === 'income') {
-                income += amount;
-            } else if (t.type === 'expense') {
-                expense += amount;
             }
         });
 
@@ -6758,10 +6761,6 @@ const AppState = {
                 if (catType === 'income') {
                     income += amount;
                 } else if (catType === 'expense') {
-                    expense += amount;
-                } else if (t.type === 'income') {
-                    income += amount;
-                } else if (t.type === 'expense') {
                     expense += amount;
                 }
             });
@@ -7458,9 +7457,18 @@ function renderTransactions() {
         );
     }
 
-    // 类型过滤
+    // 类型过滤：按分类类型筛选
     if (typeFilter !== 'all') {
-        transactions = transactions.filter(t => t.type === typeFilter);
+        var categories = AppState.getCategories();
+        if (typeFilter === 'transfer') {
+            transactions = transactions.filter(t => t.type === 'transfer');
+        } else {
+            transactions = transactions.filter(function(t) {
+                if (t.type === 'transfer') return false;
+                var cat = categories.find(function(c) { return c.id === t.categoryId; });
+                return cat && cat.type === typeFilter;
+            });
+        }
     }
 
     // 【新增】账户过滤
@@ -7539,11 +7547,14 @@ function showAccountSummaryFiltered(filteredTransactions, accountId) {
     var isReceivable = account && account.accountCategory === 'receivable';
     var isPayable = account && (account.accountCategory === 'payable' || account.accountCategory === 'credit');
 
+    var categories = AppState.getCategories();
     for (var i = 0; i < filteredTransactions.length; i++) {
         var t = filteredTransactions[i];
         count++;
-        if (t.type === 'income') income += Math.abs(t.amount);
-        else if (t.type === 'expense') expense += Math.abs(t.amount);
+        var cat = categories.find(function(c) { return c.id === t.categoryId; });
+        var catType = cat ? cat.type : null;
+        if (catType === 'income') income += Math.abs(t.amount);
+        else if (catType === 'expense') expense += Math.abs(t.amount);
         else if (t.type === 'transfer') {
             if (t.fromAccountId === accountId) transferOut += Math.abs(t.amount);
             if (t.toAccountId === accountId) transferIn += Math.abs(t.amount);
