@@ -7745,19 +7745,22 @@ function openMonthSelect(source) {
             MonthSelectState.selectedMonths = [];
         }
     } else {
-        MonthSelectState.viewYear = parseInt(AppState.homeMonthFilter.value[0].split('-')[0]);
-        MonthSelectState.selectedMonths = ['year-' + MonthSelectState.viewYear];
-    } else if (AppState.homeMonthFilter && AppState.homeMonthFilter.type === 'months') {
-        const firstMonth = AppState.homeMonthFilter.value[0];
-        if (firstMonth) {
-            MonthSelectState.viewYear = parseInt(firstMonth.split('-')[0]);
+        // 加载已有筛选 - 首页
+        if (AppState.homeMonthFilter && AppState.homeMonthFilter.type === 'year') {
+            MonthSelectState.viewYear = parseInt(AppState.homeMonthFilter.value[0].split('-')[0]);
+            MonthSelectState.selectedMonths = ['year-' + MonthSelectState.viewYear];
+        } else if (AppState.homeMonthFilter && AppState.homeMonthFilter.type === 'months') {
+            const firstMonth = AppState.homeMonthFilter.value[0];
+            if (firstMonth) {
+                MonthSelectState.viewYear = parseInt(firstMonth.split('-')[0]);
+            }
+            MonthSelectState.selectedMonths = AppState.homeMonthFilter.value.slice();
+        } else {
+            // 当前月份
+            const y = AppState.currentMonth.getFullYear();
+            const m = String(AppState.currentMonth.getMonth() + 1).padStart(2, '0');
+            MonthSelectState.selectedMonths = [y + '-' + m];
         }
-        MonthSelectState.selectedMonths = AppState.homeMonthFilter.value.slice();
-    } else {
-        // 当前月份
-        const y = AppState.currentMonth.getFullYear();
-        const m = String(AppState.currentMonth.getMonth() + 1).padStart(2, '0');
-        MonthSelectState.selectedMonths = [y + '-' + m];
     }
 
     document.getElementById('month-select-modal').classList.add('active');
