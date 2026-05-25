@@ -4211,7 +4211,416 @@ body {
             gap: 4px;
         }
 
-        /* ===== 规则管理表格 ===== */
+        /* ===== 规则管理卡片 ===== */
+        /* 汇总面板 */
+        .rule-summary-panel {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .rule-summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 4px;
+            background: var(--bg-color);
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+        }
+        .rule-summary-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+        .rule-summary-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .rule-summary-warning .rule-summary-value {
+            color: #F57C00;
+        }
+        .rule-summary-error .rule-summary-value {
+            color: #E53935;
+        }
+
+        /* 搜索和筛选 */
+        .rule-search-section {
+            padding: 12px 0;
+        }
+        .rule-search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-color);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+        }
+        .rule-search-box i {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .rule-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            outline: none;
+            color: var(--text-primary);
+        }
+        .rule-search-input::placeholder {
+            color: var(--text-secondary);
+        }
+        .rule-search-clear {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 12px;
+            display: none;
+        }
+        .rule-search-clear.visible {
+            display: block;
+        }
+        .rule-filter-row {
+            display: flex;
+            gap: 8px;
+        }
+        .rule-filter-select {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            background: white;
+            color: var(--text-primary);
+            outline: none;
+            cursor: pointer;
+        }
+        .rule-filter-select:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* 规则测试 */
+        .rule-test-section {
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .rule-test-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--bg-color);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .rule-test-toggle i:first-child {
+            color: var(--primary-color);
+        }
+        .rule-test-arrow {
+            margin-left: auto;
+            transition: transform 0.2s;
+            color: var(--text-secondary);
+        }
+        .rule-test-arrow.open {
+            transform: rotate(180deg);
+        }
+        .rule-test-body {
+            padding: 12px 14px;
+        }
+        .rule-test-input-row {
+            margin-bottom: 10px;
+        }
+        .rule-test-results {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .rule-test-result-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        .rule-test-result-item.rule-match {
+            background: rgba(76,175,80,0.08);
+            border-left: 3px solid #4CAF50;
+        }
+        .rule-test-result-item.rule-no-match {
+            background: var(--bg-color);
+            opacity: 0.5;
+        }
+        .rule-test-result-icon {
+            font-size: 14px;
+            margin-top: 2px;
+        }
+        .rule-match .rule-test-result-icon {
+            color: #4CAF50;
+        }
+        .rule-no-match .rule-test-result-icon {
+            color: var(--text-secondary);
+        }
+        .rule-test-result-name {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .rule-test-result-desc {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .rule-test-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            padding: 20px;
+        }
+
+        /* 规则卡片 */
+        .rule-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .rule-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.2s;
+            position: relative;
+        }
+        .rule-card.has-conflict {
+            border-left-color: #FF9800;
+            background: rgba(255,152,0,0.03);
+        }
+        .rule-card.has-duplicate {
+            border-left-color: #9E9E9E;
+            background: rgba(158,158,158,0.03);
+        }
+        .rule-card.has-invalid-cat {
+            border-left-color: #E53935;
+            background: rgba(229,57,53,0.03);
+        }
+        .rule-card.selected {
+            background: rgba(76,175,80,0.05);
+        }
+        .rule-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .rule-card-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+        .rule-card-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .rule-card-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .rule-card-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .rule-card-actions .btn-icon-sm {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+        .rule-card-actions .btn-icon-sm:hover {
+            background: var(--primary-light);
+            color: var(--primary-color);
+        }
+        .rule-card-actions .btn-icon-sm-danger:hover {
+            background: var(--danger-bg);
+            color: var(--danger-color);
+        }
+
+        /* 规则匹配逻辑 */
+        .rule-card-logic {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--bg-color);
+            border-radius: var(--radius-sm);
+            margin-bottom: 10px;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+        .rule-card-field {
+            padding: 2px 8px;
+            background: rgba(33,150,243,0.1);
+            color: #2196F3;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .rule-card-match-type {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .rule-card-keyword {
+            padding: 2px 10px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .rule-card-arrow {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .rule-card-category {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* 优先级控制 */
+        .rule-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .rule-priority-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .rule-priority-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .rule-priority-btn {
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .rule-priority-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        .rule-priority-value {
+            font-size: 14px;
+            font-weight: 700;
+            min-width: 24px;
+            text-align: center;
+        }
+        .rule-priority-value.high {
+            color: #4CAF50;
+        }
+        .rule-priority-value.medium {
+            color: #FF9800;
+        }
+        .rule-priority-value.low {
+            color: #9E9E9E;
+        }
+
+        /* 警告标识 */
+        .rule-card-warnings {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .rule-card-warning-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .rule-card-warning-tag.conflict {
+            background: rgba(255,152,0,0.1);
+            color: #F57C00;
+        }
+        .rule-card-warning-tag.duplicate {
+            background: rgba(158,158,158,0.1);
+            color: #757575;
+        }
+        .rule-card-warning-tag.invalid {
+            background: rgba(229,57,53,0.1);
+            color: #E53935;
+        }
+
+        .rule-empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        .rule-empty-state i {
+            font-size: 40px;
+            margin-bottom: 12px;
+            color: var(--primary-light);
+        }
+        .rule-empty-state h4 {
+            margin: 8px 0 4px;
+            color: var(--text-primary);
+        }
+        .rule-empty-state p {
+            font-size: 13px;
+        }
+
+        /* 旧表格 CSS 保留兼容 */
         .rule-table-header {
             display: flex;
             align-items: center;
@@ -5930,11 +6339,73 @@ body {
                 <div style="display:flex;align-items:center;gap:12px;">
                     <button class="settings-back-btn" onclick="closeModal('rule-settings-modal')"><i class="fas fa-arrow-left"></i></button>
                     <h3 style="margin:0;">规则管理</h3>
-                    <span class="rule-count-badge" id="rule-count-badge" style="padding:2px 10px;background:rgba(76,175,80,0.12);color:#4CAF50;font-size:12px;font-weight:600;border-radius:12px;">0条</span>
+                    <span class="rule-count-badge" id="rule-count-badge">0条</span>
                 </div>
                 <button class="btn-sm btn-sm-primary" onclick="showAddRuleModal()"><i class="fas fa-plus"></i> 添加</button>
             </div>
             <div class="settings-sub-body">
+                <!-- 汇总面板 -->
+                <div class="rule-summary-panel" id="rule-summary-panel">
+                    <div class="rule-summary-item">
+                        <span class="rule-summary-value" id="rule-total-count">0</span>
+                        <span class="rule-summary-label">总规则</span>
+                    </div>
+                    <div class="rule-summary-item rule-summary-warning">
+                        <span class="rule-summary-value" id="rule-conflict-count">0</span>
+                        <span class="rule-summary-label">冲突</span>
+                    </div>
+                    <div class="rule-summary-item rule-summary-warning">
+                        <span class="rule-summary-value" id="rule-duplicate-count">0</span>
+                        <span class="rule-summary-label">重复</span>
+                    </div>
+                    <div class="rule-summary-item rule-summary-error">
+                        <span class="rule-summary-value" id="rule-invalid-count">0</span>
+                        <span class="rule-summary-label">无效</span>
+                    </div>
+                </div>
+
+                <!-- 搜索和筛选 -->
+                <div class="rule-search-section">
+                    <div class="rule-search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="rule-search-input" id="rule-search-input" placeholder="搜索规则名称或关键词..." oninput="filterRules()">
+                        <button class="rule-search-clear" onclick="clearRuleSearch()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="rule-filter-row">
+                        <select class="rule-filter-select" id="rule-filter-field" onchange="filterRules()">
+                            <option value="">全部字段</option>
+                            <option value="counterparty">商户/对方</option>
+                            <option value="categoryRaw">原始分类</option>
+                            <option value="note">备注</option>
+                        </select>
+                        <select class="rule-filter-select" id="rule-filter-category" onchange="filterRules()">
+                            <option value="">全部分类</option>
+                        </select>
+                        <select class="rule-filter-select" id="rule-filter-issue" onchange="filterRules()">
+                            <option value="">全部规则</option>
+                            <option value="conflict">仅冲突</option>
+                            <option value="duplicate">仅重复</option>
+                            <option value="invalid">仅无效</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 规则测试 -->
+                <div class="rule-test-section">
+                    <div class="rule-test-toggle" onclick="toggleRuleTest()">
+                        <i class="fas fa-flask"></i> <span>规则测试</span>
+                        <i class="fas fa-chevron-down rule-test-arrow" id="rule-test-arrow"></i>
+                    </div>
+                    <div class="rule-test-body" id="rule-test-body" style="display:none;">
+                        <div class="rule-test-input-row">
+                            <input type="text" class="form-input" id="rule-test-input" placeholder="输入文本测试哪些规则会匹配..." oninput="testRuleMatch()">
+                        </div>
+                        <div class="rule-test-results" id="rule-test-results">
+                            <div class="rule-test-empty">输入文本后显示匹配结果</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 批量操作栏 -->
                 <div class="batch-bar" id="rule-batch-bar" style="display:none;">
                     <div class="batch-bar-info">
@@ -5946,11 +6417,10 @@ body {
                         <button class="btn-sm btn-sm-danger" onclick="batchDeleteRules()"><i class="fas fa-trash"></i> 删除</button>
                     </div>
                 </div>
-                <!-- 规则表格 -->
-                <div style="max-height:50vh;overflow:auto;border-radius:var(--radius-sm);">
-                    <div id="rule-table-container">
-                        <!-- 动态生成 -->
-                    </div>
+
+                <!-- 规则卡片列表 -->
+                <div id="rule-card-container">
+                    <!-- 动态生成 -->
                 </div>
             </div>
         </div>
@@ -10346,12 +10816,23 @@ function deleteCategory(id) {
 
 function renderRuleList() {
     const rules = AppState.getRules();
-    const container = document.getElementById('rule-table-container');
+    const container = document.getElementById('rule-card-container');
     const badge = document.getElementById('rule-count-badge');
     if (badge) badge.textContent = rules.length + '条';
 
-    // 清除批量选中（如果规则数量变化）
     if (!window._ruleSelectedIds) window._ruleSelectedIds = new Set();
+
+    // 更新汇总面板
+    document.getElementById('rule-total-count').textContent = rules.length;
+
+    // 问题分析
+    var issues = analyzeRuleIssues(rules);
+    document.getElementById('rule-conflict-count').textContent = issues.conflicts.length;
+    document.getElementById('rule-duplicate-count').textContent = issues.duplicates.length;
+    document.getElementById('rule-invalid-count').textContent = issues.invalid.length;
+
+    // 更新分类筛选下拉框
+    populateRuleFilterCategories();
 
     if (rules.length === 0) {
         container.innerHTML = '<div class="rule-empty-state"><i class="fas fa-magic"></i><h4>暂无规则</h4><p>添加规则后，导入账单时会自动分类</p></div>';
@@ -10359,96 +10840,261 @@ function renderRuleList() {
         return;
     }
 
+    // 应用筛选
+    var filteredRules = applyRuleFilters(rules, issues);
+
+    if (filteredRules.length === 0) {
+        container.innerHTML = '<div class="rule-empty-state"><p>没有匹配的规则</p></div>';
+        return;
+    }
+
+    // 按优先级排序
+    filteredRules.sort(function(a, b) { return (b.priority || 0) - (a.priority || 0); });
+
     const fieldNames = { counterparty: '商户/对方', categoryRaw: '原始分类', note: '备注' };
     const matchNames = { contains: '包含', equals: '等于', startsWith: '开头是', endsWith: '结尾是' };
+    const categories = AppState.getCategories();
+    const validCategoryIds = {};
+    categories.forEach(function(c) { validCategoryIds[c.id] = true; });
 
-    // 检测冲突：相同关键词但不同分类
-    var conflictKeywords = {};
-    rules.forEach(function(r) {
-        var key = r.field + '|' + r.keyword;
-        if (!conflictKeywords[key]) conflictKeywords[key] = [];
-        conflictKeywords[key].push(r);
-    });
-    var hasConflict = Object.values(conflictKeywords).some(function(group) {
-        return group.length > 1 && new Set(group.map(function(r) { return r.categoryId; })).size > 1;
-    });
+    var html = '<div class="rule-card-list">';
+    filteredRules.forEach(function(r) {
+        var cat = AppState.getCategory(r.categoryId);
+        var fieldName = fieldNames[r.field] || r.field || '';
+        var matchName = matchNames[r.matchType] || r.matchType || '';
+        var catColor = cat ? cat.color : '#999';
+        var catName = cat ? cat.name : '已删除';
+        var catIcon = cat ? cat.icon : 'fa-question';
+        var isSelected = window._ruleSelectedIds.has(r.id);
 
-    // 按关键词分组，组内按优先级排序
+        // 卡片样式类
+        var cardClasses = 'rule-card';
+        if (isSelected) cardClasses += ' selected';
+        if (issues.invalid.indexOf(r.id) !== -1) cardClasses += ' has-invalid-cat';
+        else if (issues.conflicts.indexOf(r.id) !== -1) cardClasses += ' has-conflict';
+        else if (issues.duplicates.indexOf(r.id) !== -1) cardClasses += ' has-duplicate';
+
+        // 优先级样式
+        var pri = r.priority || 0;
+        var priClass = pri > 50 ? 'high' : pri < 10 ? 'low' : 'medium';
+
+        html += '<div class="' + cardClasses + '" data-id="' + r.id + '">';
+        html += '<div class="rule-card-header">';
+        html += '<div class="rule-card-title">';
+        html += '<input type="checkbox" class="rule-card-checkbox" ' + (isSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleRuleSelection(\'' + r.id + '\', this.checked)">';
+        html += '<span class="rule-card-name">' + escapeHtml(r.name || '未命名') + '</span>';
+        html += '</div>';
+        html += '<div class="rule-card-actions">';
+        html += '<button class="btn-icon-sm" onclick="editRule(\'' + r.id + '\')" title="编辑"><i class="fas fa-pen"></i></button>';
+        html += '<button class="btn-icon-sm btn-icon-sm-danger" onclick="deleteRule(\'' + r.id + '\')" title="删除"><i class="fas fa-trash"></i></button>';
+        html += '</div>';
+        html += '</div>';
+
+        // 匹配逻辑可视化
+        html += '<div class="rule-card-logic">';
+        html += '<span class="rule-card-field">' + escapeHtml(fieldName) + '</span>';
+        html += '<span class="rule-card-match-type">' + escapeHtml(matchName) + '</span>';
+        html += '<span class="rule-card-keyword">' + escapeHtml(r.keyword || '') + '</span>';
+        html += '<span class="rule-card-arrow"><i class="fas fa-arrow-right"></i></span>';
+        html += '<span class="rule-card-category" style="background:' + catColor + '15;color:' + catColor + '">';
+        html += '<i class="fas ' + catIcon + '"></i> ' + escapeHtml(catName);
+        html += '</span>';
+        html += '</div>';
+
+        // 底部：优先级控制 + 警告
+        html += '<div class="rule-card-footer">';
+        html += '<div class="rule-priority-control">';
+        html += '<span class="rule-priority-label">优先级</span>';
+        html += '<button class="rule-priority-btn" onclick="changeRulePriority(\'' + r.id + '\', -5)" title="降低"><i class="fas fa-minus"></i></button>';
+        html += '<span class="rule-priority-value ' + priClass + '">' + pri + '</span>';
+        html += '<button class="rule-priority-btn" onclick="changeRulePriority(\'' + r.id + '\', 5)" title="提高"><i class="fas fa-plus"></i></button>';
+        html += '</div>';
+
+        // 警告标签
+        html += '<div class="rule-card-warnings">';
+        if (issues.invalid.indexOf(r.id) !== -1) {
+            html += '<span class="rule-card-warning-tag invalid"><i class="fas fa-times-circle"></i> 分类已删除</span>';
+        }
+        if (issues.conflicts.indexOf(r.id) !== -1) {
+            html += '<span class="rule-card-warning-tag conflict"><i class="fas fa-exclamation-triangle"></i> 规则冲突</span>';
+        }
+        if (issues.duplicates.indexOf(r.id) !== -1) {
+            html += '<span class="rule-card-warning-tag duplicate"><i class="fas fa-copy"></i> 重复规则</span>';
+        }
+        html += '</div>';
+        html += '</div>';
+
+        html += '</div>';
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+    updateRuleBatchBar();
+}
+
+// 分析规则问题：冲突、重复、无效分类
+function analyzeRuleIssues(rules) {
+    var issues = { conflicts: [], duplicates: [], invalid: [] };
+    var categories = AppState.getCategories();
+    var validIds = {};
+    categories.forEach(function(c) { validIds[c.id] = true; });
+
+    // 按 field+keyword+matchType 分组
     var groups = {};
     rules.forEach(function(r) {
-        var key = r.keyword;
+        var key = r.field + '|' + r.keyword + '|' + r.matchType;
         if (!groups[key]) groups[key] = [];
         groups[key].push(r);
     });
 
+    Object.values(groups).forEach(function(group) {
+        if (group.length < 2) return;
+        var catIds = new Set(group.map(function(r) { return r.categoryId; }));
+        if (catIds.size > 1) {
+            // 冲突：相同匹配条件但不同分类
+            group.forEach(function(r) { issues.conflicts.push(r.id); });
+        } else {
+            // 重复：完全相同的匹配条件和分类
+            group.forEach(function(r) { issues.duplicates.push(r.id); });
+        }
+    });
+
+    // 无效分类
+    rules.forEach(function(r) {
+        if (!validIds[r.categoryId]) issues.invalid.push(r.id);
+    });
+
+    return issues;
+}
+
+// 应用筛选
+function applyRuleFilters(rules, issues) {
+    var search = document.getElementById('rule-search-input') ? document.getElementById('rule-search-input').value.trim().toLowerCase() : '';
+    var fieldFilter = document.getElementById('rule-filter-field') ? document.getElementById('rule-filter-field').value : '';
+    var catFilter = document.getElementById('rule-filter-category') ? document.getElementById('rule-filter-category').value : '';
+    var issueFilter = document.getElementById('rule-filter-issue') ? document.getElementById('rule-filter-issue').value : '';
+
+    return rules.filter(function(r) {
+        // 搜索
+        if (search) {
+            var nameMatch = (r.name || '').toLowerCase().indexOf(search) !== -1;
+            var keywordMatch = (r.keyword || '').toLowerCase().indexOf(search) !== -1;
+            if (!nameMatch && !keywordMatch) return false;
+        }
+        // 字段筛选
+        if (fieldFilter && r.field !== fieldFilter) return false;
+        // 分类筛选
+        if (catFilter && r.categoryId !== catFilter) return false;
+        // 问题筛选
+        if (issueFilter === 'conflict' && issues.conflicts.indexOf(r.id) === -1) return false;
+        if (issueFilter === 'duplicate' && issues.duplicates.indexOf(r.id) === -1) return false;
+        if (issueFilter === 'invalid' && issues.invalid.indexOf(r.id) === -1) return false;
+        return true;
+    });
+}
+
+function filterRules() {
+    // 更新搜索清除按钮
+    var searchInput = document.getElementById('rule-search-input');
+    var clearBtn = document.querySelector('.rule-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('visible', searchInput && searchInput.value.length > 0);
+
+    renderRuleList();
+}
+
+function clearRuleSearch() {
+    var input = document.getElementById('rule-search-input');
+    if (input) input.value = '';
+    renderRuleList();
+}
+
+function populateRuleFilterCategories() {
+    var select = document.getElementById('rule-filter-category');
+    if (!select) return;
+    var currentVal = select.value;
+    var categories = AppState.getCategories();
+    var html = '<option value="">全部分类</option>';
+    categories.forEach(function(c) {
+        html += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+    });
+    select.innerHTML = html;
+    if (currentVal) select.value = currentVal;
+}
+
+// 快速调整优先级
+function changeRulePriority(id, delta) {
+    var rules = AppState.getRules();
+    var idx = rules.findIndex(function(r) { return r.id === id; });
+    if (idx === -1) return;
+    rules[idx].priority = Math.max(0, Math.min(100, (rules[idx].priority || 0) + delta));
+    AppState.saveRules(rules);
+    renderRuleList();
+}
+
+// 规则测试
+function toggleRuleTest() {
+    var body = document.getElementById('rule-test-body');
+    var arrow = document.getElementById('rule-test-arrow');
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        arrow.classList.add('open');
+    } else {
+        body.style.display = 'none';
+        arrow.classList.remove('open');
+    }
+}
+
+function testRuleMatch() {
+    var input = document.getElementById('rule-test-input').value.trim();
+    var results = document.getElementById('rule-test-results');
+    if (!input) {
+        results.innerHTML = '<div class="rule-test-empty">输入文本后显示匹配结果</div>';
+        return;
+    }
+
+    var rules = AppState.getRules();
+    var categories = AppState.getCategories();
+    var fieldNames = { counterparty: '商户/对方', categoryRaw: '原始分类', note: '备注' };
+    var matchNames = { contains: '包含', equals: '等于', startsWith: '开头是', endsWith: '结尾是' };
+
+    // 按优先级排序
+    rules.sort(function(a, b) { return (b.priority || 0) - (a.priority || 0); });
+
     var html = '';
-    // 冲突提示
-    if (hasConflict) {
-        html += '<div style="margin:0 16px 12px;padding:10px 14px;background:rgba(255,152,0,0.08);border-radius:8px;font-size:12px;color:#F57C00;">';
-        html += '<i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i> 检测到规则冲突：同一关键词对应多个分类，将按优先级匹配';
+    var hasMatch = false;
+    rules.forEach(function(r) {
+        var value = input;
+        var matched = false;
+        if (r.matchType === 'contains' && value.indexOf(r.keyword) !== -1) matched = true;
+        else if (r.matchType === 'equals' && value === r.keyword) matched = true;
+        else if (r.matchType === 'startsWith' && value.indexOf(r.keyword) === 0) matched = true;
+        else if (r.matchType === 'endsWith' && value.lastIndexOf(r.keyword) === value.length - r.keyword.length) matched = true;
+
+        if (matched) hasMatch = true;
+
+        var cat = AppState.getCategory(r.categoryId);
+        var catColor = cat ? cat.color : '#999';
+        var catName = cat ? cat.name : '已删除';
+
+        html += '<div class="rule-test-result-item ' + (matched ? 'rule-match' : 'rule-no-match') + '">';
+        html += '<i class="fas ' + (matched ? 'fa-check-circle' : 'fa-times-circle') + ' rule-test-result-icon"></i>';
+        html += '<div>';
+        html += '<div class="rule-test-result-name">' + escapeHtml(r.name || '未命名') + '</div>';
+        html += '<div class="rule-test-result-desc">';
+        html += escapeHtml(fieldNames[r.field] || r.field) + ' ' + escapeHtml(matchNames[r.matchType] || r.matchType) + ' ';
+        html += '<strong>' + escapeHtml(r.keyword) + '</strong>';
+        if (matched) html += ' → <span style="color:' + catColor + '">' + escapeHtml(catName) + '</span>';
+        html += ' <span style="color:var(--text-secondary);">(优先级' + (r.priority || 0) + ')</span>';
+        html += '</div></div></div>';
+    });
+
+    if (!hasMatch) {
+        html += '<div style="text-align:center;padding:8px;font-size:12px;color:#F57C00;">';
+        html += '<i class="fas fa-exclamation-triangle"></i> 没有规则匹配此文本';
         html += '</div>';
     }
 
-    // 排序后的关键词列表（按组内最高优先级排序）
-    var sortedKeys = Object.keys(groups).sort(function(a, b) {
-        var maxA = Math.max.apply(null, groups[a].map(function(r) { return r.priority || 0; }));
-        var maxB = Math.max.apply(null, groups[b].map(function(r) { return r.priority || 0; }));
-        return maxB - maxA;
-    });
-
-    html += '<table class="rule-table"><thead><tr>' +
-        '<th><input type="checkbox" class="rule-checkbox" onchange="toggleAllRules(this.checked)" id="rule-select-all"></th>' +
-        '<th>规则名称</th>' +
-        '<th>匹配条件</th>' +
-        '<th>分类到</th>' +
-        '<th>优先级</th>' +
-        '<th style="text-align:right;">操作</th>' +
-    '</tr></thead><tbody>';
-
-    sortedKeys.forEach(function(keyword) {
-        var group = groups[keyword];
-        var isConflict = group.length > 1 && new Set(group.map(function(r) { return r.categoryId; })).size > 1;
-
-        // 组头（可点击展开/收起）
-        var groupColor = isConflict ? '#FF9800' : '#4CAF50';
-        html += '<tr class="rule-group-header" onclick="toggleRuleGroup(this)" style="cursor:pointer;background:rgba(156,136,240,0.04);">' +
-            '<td colspan="6" style="padding:10px 16px;">' +
-            '<i class="fas fa-chevron-down rule-group-arrow" style="margin-right:6px;transition:transform 0.2s;font-size:11px;color:var(--text-secondary);"></i>' +
-            '<strong style="color:' + groupColor + ';">关键词：' + escapeHtml(keyword) + '</strong>' +
-            '<span style="margin-left:8px;font-size:11px;color:var(--text-secondary);">' + group.length + ' 条规则' +
-            (isConflict ? ' · <span style="color:#F57C00;">⚠ 冲突</span>' : '') +
-            '</span>' +
-            '</td></tr>';
-
-        // 组内规则（按优先级降序）
-        group.sort(function(a, b) { return (b.priority || 0) - (a.priority || 0); });
-        group.forEach(function(r) {
-            var cat = AppState.getCategory(r.categoryId);
-            var fieldName = fieldNames[r.field] || r.field || '';
-            var matchName = matchNames[r.matchType] || r.matchType || '';
-            var catColor = cat ? cat.color : '#999';
-            var catName = cat ? cat.name : '未知';
-            var isSelected = window._ruleSelectedIds.has(r.id);
-            var priorityBadge = (r.priority || 0) > 50 ? 'style="background:rgba(76,175,80,0.12);color:#4CAF50;"' :
-                               (r.priority || 0) < 10 ? 'style="background:rgba(158,158,158,0.12);color:#9E9E9E;"' : '';
-
-            html += '<tr class="rule-group-item ' + (isSelected ? 'selected' : '') + '" data-id="' + r.id + '">' +
-                '<td><input type="checkbox" class="rule-checkbox" ' + (isSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleRuleSelection(\'' + r.id + '\', this.checked)"></td>' +
-                '<td class="rule-name-cell">' + escapeHtml(r.name || '未命名') + '</td>' +
-                '<td class="rule-match-cell"><span class="keyword">' + escapeHtml(r.keyword || '') + '</span> ' + matchName + ' <small style="color:#999;">' + fieldName + '</small></td>' +
-                '<td><span class="rule-category-cell" style="background:' + catColor + '15;color:' + catColor + '"><i class="fas ' + (cat ? cat.icon : 'fa-question') + '"></i> ' + catName + '</span></td>' +
-                '<td class="rule-priority-cell"><span class="priority-badge" ' + priorityBadge + '>' + (r.priority || 0) + '</span></td>' +
-                '<td class="rule-actions-cell">' +
-                    '<button class="btn-icon-sm" onclick="editRule(\'' + r.id + '\')" title="编辑"><i class="fas fa-pen"></i></button>' +
-                    '<button class="btn-icon-sm btn-icon-sm-danger" onclick="deleteRule(\'' + r.id + '\')" title="删除"><i class="fas fa-trash"></i></button>' +
-                '</td>' +
-            '</tr>';
-        });
-    });
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-    updateRuleBatchBar();
+    results.innerHTML = html;
 }
 
 function toggleRuleGroup(headerRow) {
@@ -10488,20 +11134,18 @@ function toggleRuleSelection(id, checked) {
     } else {
         window._ruleSelectedIds.delete(id);
     }
-    // 更新表格行的选中状态
-    const tr = document.querySelector('.rule-table tbody tr[data-id="' + id + '"]');
-    if (tr) tr.classList.toggle('selected', checked);
+    // 更新卡片选中状态
+    var card = document.querySelector('.rule-card[data-id="' + id + '"]');
+    if (card) card.classList.toggle('selected', checked);
     updateRuleBatchBar();
 }
 
 function clearRuleSelection() {
     if (!window._ruleSelectedIds) window._ruleSelectedIds = new Set();
     window._ruleSelectedIds.clear();
-    const selectAll = document.getElementById('rule-select-all');
-    if (selectAll) selectAll.checked = false;
-    document.querySelectorAll('.rule-table tbody tr').forEach(function(tr) {
-        tr.classList.remove('selected');
-        var cb = tr.querySelector('.rule-checkbox');
+    document.querySelectorAll('.rule-card').forEach(function(card) {
+        card.classList.remove('selected');
+        var cb = card.querySelector('.rule-card-checkbox');
         if (cb) cb.checked = false;
     });
     document.getElementById('rule-batch-bar').style.display = 'none';
@@ -10516,10 +11160,6 @@ function updateRuleBatchBar() {
     } else {
         bar.style.display = 'none';
     }
-    // 更新全选框状态
-    const rules = AppState.getRules();
-    const selectAll = document.getElementById('rule-select-all');
-    if (selectAll) selectAll.checked = rules.length > 0 && window._ruleSelectedIds.size === rules.length;
 }
 
 function batchDeleteRules() {
