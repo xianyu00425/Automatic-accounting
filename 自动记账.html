@@ -9732,13 +9732,11 @@ function confirmImport() {
     AppState.saveTransactions([...previewData.transactions, ...existingTransactions]);
 
     closeModal('preview-modal');
-
-    refreshAllData();
     initAccountFilter();
 
     var msg = `成功导入 ${previewData.transactions.length} 条记录`;
     if (autoCount > 0) {
-        msg += `，其中 ${autoCount} 条已自动分类`;
+        msg += `，${autoCount} 条已自动分类`;
     }
     // 账户匹配状态
     if (previewData.accountUnmatched && previewData.accountUnmatched.length > 0) {
@@ -9749,6 +9747,12 @@ function confirmImport() {
         msg += `，${unmatched} 条待处理`;
     }
     showToast(msg);
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 
 function processPastedData() {
@@ -9868,73 +9872,52 @@ function recalculateAllAccountBalances() {
     var transactions = AppState.getTransactions();
     var accounts = AppState.getAccounts();
 
-    console.log('[余额重算] 交易总数:', transactions.length, '账户数:', accounts.length);
+    // 单次遍历所有交易，按账户ID累加（替代原来N账户×M交易的双重循环）
+    var accountStats = {};
+    for (var i = 0; i < transactions.length; i++) {
+        var t = transactions[i];
+        var amt = Math.abs(parseFloat(t.amount)) || 0;
+        var type = t.type;
+
+        if (type === 'transfer') {
+            if (t.fromAccountId) {
+                if (!accountStats[t.fromAccountId]) accountStats[t.fromAccountId] = { income: 0, expense: 0, transfersIn: 0, transfersOut: 0 };
+                accountStats[t.fromAccountId].transfersOut += amt;
+            }
+            if (t.toAccountId) {
+                if (!accountStats[t.toAccountId]) accountStats[t.toAccountId] = { income: 0, expense: 0, transfersIn: 0, transfersOut: 0 };
+                accountStats[t.toAccountId].transfersIn += amt;
+            }
+        } else {
+            var accId = t.accountId;
+            if (!accId) continue;
+            if (!accountStats[accId]) accountStats[accId] = { income: 0, expense: 0, transfersIn: 0, transfersOut: 0 };
+            if (type === 'income') accountStats[accId].income += amt;
+            else if (type === 'expense') accountStats[accId].expense += amt;
+        }
+    }
 
     accounts.forEach(function(account) {
-        console.log('[余额重算] 处理账户:', account.name, 'id:', account.id, 'category:', account.accountCategory, 'initialBalance:', account.initialBalance, '当前balance:', account.balance);
+        var stats = accountStats[account.id] || { income: 0, expense: 0, transfersIn: 0, transfersOut: 0 };
 
         if (account.accountCategory === 'payable' || account.accountCategory === 'credit') {
-            // 应付欠款：余额 = 初始应付 + 支出(借入) - 收入(偿还) - 转入(还款到应付)
             var initialBal = account.initialBalance || 0;
-            var expense = 0, income = 0, transferTo = 0;
-            transactions.forEach(function(t) {
-                if (t.accountId === account.id) {
-                    var amt = Math.abs(parseFloat(t.amount)) || 0;
-                    if (t.type === 'expense') expense += amt;
-                    else if (t.type === 'income') income += amt;
-                }
-                if (t.type === 'transfer' && t.toAccountId === account.id) {
-                    transferTo += Math.abs(parseFloat(t.amount)) || 0;
-                }
-            });
-            account.outstandingDebt = initialBal + expense - income - transferTo;
+            account.outstandingDebt = initialBal + stats.expense - stats.income - stats.transfersIn;
             account.balance = account.outstandingDebt;
-            console.log('[应付欠款] ' + account.name + ': 初始 ￥' + initialBal.toFixed(2) + ' + 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' - 转入￥' + transferTo.toFixed(2) + ' = 应付￥' + account.outstandingDebt.toFixed(2));
         } else if (account.accountCategory === 'receivable') {
-            // 应收欠款：余额 = 初始应收 + 支出(借出) - 收入(收回)
             var initialBal = account.initialBalance || 0;
-            var expense = 0, income = 0;
-            transactions.forEach(function(t) {
-                if (t.accountId === account.id) {
-                    var amt = Math.abs(parseFloat(t.amount)) || 0;
-                    if (t.type === 'expense') expense += amt;
-                    else if (t.type === 'income') income += amt;
-                }
-            });
-            account.outstandingDebt = initialBal + expense - income;
+            account.outstandingDebt = initialBal + stats.expense - stats.income;
             account.balance = account.outstandingDebt;
-            console.log('[应收欠款] ' + account.name + ': 初始 ￥' + initialBal.toFixed(2) + ' + 支出￥' + expense.toFixed(2) + ' - 收入￥' + income.toFixed(2) + ' = 应收￥' + account.outstandingDebt.toFixed(2));
         } else {
-            // 自有钱包：余额 = 初始余额 + 收入 - 支出 + 转入 - 转出
-            // 兼容迁移：如果账户没有 initialBalance 字段，将当前 balance 作为初始余额
             if (account.initialBalance === undefined || account.initialBalance === null) {
                 account.initialBalance = (account.balance || 0);
             }
             var initialBalance = account.initialBalance || 0;
-            var income = 0;
-            var expense = 0;
-            var transfersIn = 0;
-            var transfersOut = 0;
-
-            transactions.forEach(function(t) {
-                var amt = Math.abs(parseFloat(t.amount)) || 0;
-
-                if (t.type === 'transfer') {
-                    if (t.fromAccountId === account.id) transfersOut += amt;
-                    if (t.toAccountId === account.id) transfersIn += amt;
-                } else if (t.accountId === account.id) {
-                    if (t.type === 'income') income += amt;
-                    else if (t.type === 'expense') expense += amt;
-                }
-            });
-
-            account.balance = initialBalance + income - expense + transfersIn - transfersOut;
-            console.log('[自有钱包] ' + account.name + ': 初始 ￥' + initialBalance.toFixed(2) + ' + 收入 ￥' + income.toFixed(2) + ' - 支出 ￥' + expense.toFixed(2) + ' + 转入 ￥' + transfersIn.toFixed(2) + ' - 转出 ￥' + transfersOut.toFixed(2) + ' = ￥' + account.balance.toFixed(2));
+            account.balance = initialBalance + stats.income - stats.expense + stats.transfersIn - stats.transfersOut;
         }
     });
 
     AppState.saveAccounts(accounts);
-    console.log('[余额重算] 已保存到localStorage');
 }
 
 function refreshAllData() {
@@ -10398,8 +10381,13 @@ function executeRepayment() {
 
     closeModal('repayment-modal');
     repaymentCreditAccountId = null;
-    refreshAllData();
     showToast('还款成功 ¥' + amount.toFixed(2));
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 // ===== 还款功能结束 =====
 
@@ -10471,8 +10459,13 @@ function executeBorrow() {
 
     closeModal('borrow-modal');
     fundMovementAccountId = null;
-    refreshAllData();
     showToast('借入成功 ¥' + amount.toFixed(2));
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 
 // 偿还应付：自有钱包减少，应付欠款减少
@@ -10541,9 +10534,16 @@ function executeRepayPayable() {
 
     closeModal('repay-payable-modal');
     fundMovementAccountId = null;
-    refreshAllData();
     showToast('偿还成功 ¥' + amount.toFixed(2));
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
+
+// 借出：自有钱包减少，应收欠款增加
 
 // 借出：自有钱包减少，应收欠款增加
 function showLendModal(receivableId) {
@@ -10604,9 +10604,16 @@ function executeLend() {
 
     closeModal('lend-modal');
     fundMovementAccountId = null;
-    refreshAllData();
     showToast('借出成功 ¥' + amount.toFixed(2));
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
+
+// 收回应收：自有钱包增加，应收欠款减少
 
 // 收回应收：自有钱包增加，应收欠款减少
 function showCollectModal(receivableId) {
@@ -10673,8 +10680,13 @@ function executeCollect() {
 
     closeModal('collect-modal');
     fundMovementAccountId = null;
-    refreshAllData();
     showToast('收回成功 ¥' + amount.toFixed(2));
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 // ===== 资金变动操作结束 =====
 
@@ -11893,8 +11905,13 @@ function saveTransaction() {
     closeModal('process-modal');
     processingTransactionId = null;
     selectedProcessCategoryId = null;
-    refreshAllData();
     showToast('账单已处理');
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 
 function batchProcess() {
@@ -11917,8 +11934,13 @@ function batchProcess() {
     });
     AppState.saveTransactions(allTransactions);
 
-    refreshAllData();
     showToast(autoCount > 0 ? `已自动处理 ${autoCount} 条账单` : '未能自动匹配，请手动处理');
+    // 延迟刷新，先让UI线程渲染提示
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 
 // ===== 手动记账 =====
@@ -12317,8 +12339,13 @@ function saveAddTransaction() {
     }
 
     closeModal('add-transaction-modal');
-    refreshAllData();
     showToast('记账成功');
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 
 // ===== 账单详情 =====
@@ -12374,8 +12401,13 @@ function deleteTransaction() {
         AppState.saveTransactions(transactions);
         closeModal('detail-modal');
         AppState.selectedTransaction = null;
-        refreshAllData();
         showToast('账单已删除');
+        // 延迟刷新，先让UI线程渲染按钮反馈
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                refreshAllData();
+            });
+        });
     });
 }
 
@@ -12706,10 +12738,15 @@ function saveEditTransaction() {
     original.note = note;
 
     AppState.saveTransactions(transactions);
-    closeModal('edit-transaction-modal');
     AppState.selectedTransaction = null;
-    refreshAllData();
+    closeModal('edit-transaction-modal');
     showToast('账单已更新');
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 
 function populateCategorySelect(selectId, selectedId) {
@@ -13025,9 +13062,14 @@ function executeTransfer(fromAccountId, toAccountId, amount, dateValue, note, fr
 
     AppState.addTransaction(transaction);
     closeModal('transfer-modal');
-    refreshAllData();
 
     showToast('转账成功：' + fromName + ' → ' + toName + ' ¥' + amount.toFixed(2));
+    // 延迟刷新，先让UI线程渲染按钮反馈
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            refreshAllData();
+        });
+    });
 }
 
 // 初始化
